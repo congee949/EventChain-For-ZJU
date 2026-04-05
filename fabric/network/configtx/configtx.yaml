@@ -1,0 +1,175 @@
+# fabric/network/configtx/configtx.yaml
+# EventChain — Channel configuration for 3 orgs + Raft orderer
+
+---
+Organizations:
+
+  - &OrdererOrg
+    Name: OrdererOrg
+    ID: OrdererMSP
+    MSPDir: ../organizations/ordererOrganizations/eventchain.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('OrdererMSP.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('OrdererMSP.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('OrdererMSP.admin')"
+    OrdererEndpoints:
+      - orderer.eventchain.com:7050
+
+  - &PlatformOrg
+    Name: PlatformOrg
+    ID: PlatformMSP
+    MSPDir: ../organizations/peerOrganizations/platform.eventchain.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('PlatformMSP.admin', 'PlatformMSP.peer', 'PlatformMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('PlatformMSP.admin', 'PlatformMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('PlatformMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('PlatformMSP.peer')"
+    AnchorPeers:
+      - Host: peer0.platform.eventchain.com
+        Port: 7051
+
+  - &OrganizerOrg
+    Name: OrganizerOrg
+    ID: OrganizerMSP
+    MSPDir: ../organizations/peerOrganizations/organizer.eventchain.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('OrganizerMSP.admin', 'OrganizerMSP.peer', 'OrganizerMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('OrganizerMSP.admin', 'OrganizerMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('OrganizerMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('OrganizerMSP.peer')"
+    AnchorPeers:
+      - Host: peer0.organizer.eventchain.com
+        Port: 9051
+
+  - &StudentOrg
+    Name: StudentOrg
+    ID: StudentMSP
+    MSPDir: ../organizations/peerOrganizations/student.eventchain.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('StudentMSP.admin', 'StudentMSP.peer', 'StudentMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('StudentMSP.admin', 'StudentMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('StudentMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('StudentMSP.peer')"
+    AnchorPeers:
+      - Host: peer0.student.eventchain.com
+        Port: 11051
+
+Capabilities:
+  Channel: &ChannelCapabilities
+    V2_0: true
+  Orderer: &OrdererCapabilities
+    V2_0: true
+  Application: &ApplicationCapabilities
+    V2_5: true
+
+Application: &ApplicationDefaults
+  Organizations:
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+    LifecycleEndorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+    Endorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+  Capabilities:
+    <<: *ApplicationCapabilities
+
+Orderer: &OrdererDefaults
+  OrdererType: etcdraft
+  Addresses:
+    - orderer.eventchain.com:7050
+  EtcdRaft:
+    Consenters:
+      - Host: orderer.eventchain.com
+        Port: 7050
+        ClientTLSCert: ../organizations/ordererOrganizations/eventchain.com/orderers/orderer.eventchain.com/tls/server.crt
+        ServerTLSCert: ../organizations/ordererOrganizations/eventchain.com/orderers/orderer.eventchain.com/tls/server.crt
+  BatchTimeout: 2s
+  BatchSize:
+    MaxMessageCount: 10
+    AbsoluteMaxBytes: 99 MB
+    PreferredMaxBytes: 512 KB
+  Organizations:
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+    BlockValidation:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+
+Channel: &ChannelDefaults
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+  Capabilities:
+    <<: *ChannelCapabilities
+
+Profiles:
+
+  EventChainGenesis:
+    <<: *ChannelDefaults
+    Orderer:
+      <<: *OrdererDefaults
+      Organizations:
+        - *OrdererOrg
+      Capabilities: *OrdererCapabilities
+    Application:
+      <<: *ApplicationDefaults
+      Organizations:
+        - *PlatformOrg
+        - *OrganizerOrg
+        - *StudentOrg
+      Capabilities: *ApplicationCapabilities
