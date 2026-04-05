@@ -14,6 +14,7 @@ fabric/network/system-genesis-block/
 
 # Server
 server/wallet/
+server/data/
 server/users.db
 
 # IDE
