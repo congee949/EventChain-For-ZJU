@@ -71,7 +71,9 @@ packageChaincode() {
   echo ""
   echo "--- Packaging chaincode ---"
 
+  local LANG="$CC_LANGUAGE"
   if [ "$CC_LANGUAGE" = "go" ]; then
+    LANG="golang"
     echo "Vendoring Go dependencies..."
     pushd "$CC_SRC_PATH" > /dev/null
     GO111MODULE=on go mod vendor
@@ -80,7 +82,7 @@ packageChaincode() {
 
   peer lifecycle chaincode package "${CC_NAME}.tar.gz" \
     --path "$CC_SRC_PATH" \
-    --lang "$CC_LANGUAGE" \
+    --lang "$LANG" \
     --label "$CC_LABEL"
 
   echo "Chaincode packaged: ${CC_NAME}.tar.gz"

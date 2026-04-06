@@ -63,6 +63,7 @@ joinOrdererToChannel() {
 # ============================================================
 joinPeerToChannel() {
   local org="$1"
+  export FABRIC_CFG_PATH="/Users/Apple/EventChain/config"
   setGlobals "$org"
 
   local counter=0
@@ -87,6 +88,7 @@ joinPeerToChannel() {
 # ============================================================
 setAnchorPeer() {
   local org="$1"
+  export FABRIC_CFG_PATH="/Users/Apple/EventChain/config"
   setGlobals "$org"
 
   echo "Setting anchor peer for ${org}..."

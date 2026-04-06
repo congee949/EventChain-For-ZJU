@@ -84,6 +84,8 @@ services:
       - FABRIC_CFG_PATH=/etc/hyperledger/peercfg
       - FABRIC_LOGGING_SPEC=INFO
       #- FABRIC_LOGGING_SPEC=DEBUG
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=eventchain_network
       - CORE_PEER_TLS_ENABLED=true
       - CORE_PEER_PROFILE_ENABLED=false
       - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
@@ -109,6 +111,7 @@ services:
     depends_on:
       - couchdb0
     volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
       - ../organizations/peerOrganizations/platform.eventchain.com/peers/peer0.platform.eventchain.com:/etc/hyperledger/fabric
       - peer0.platform.eventchain.com:/var/hyperledger/production
       - ../../../config/core.yaml:/etc/hyperledger/peercfg/core.yaml
@@ -145,6 +148,8 @@ services:
       - FABRIC_CFG_PATH=/etc/hyperledger/peercfg
       - FABRIC_LOGGING_SPEC=INFO
       #- FABRIC_LOGGING_SPEC=DEBUG
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=eventchain_network
       - CORE_PEER_TLS_ENABLED=true
       - CORE_PEER_PROFILE_ENABLED=false
       - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
@@ -170,6 +175,7 @@ services:
     depends_on:
       - couchdb1
     volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
       - ../organizations/peerOrganizations/organizer.eventchain.com/peers/peer0.organizer.eventchain.com:/etc/hyperledger/fabric
       - peer0.organizer.eventchain.com:/var/hyperledger/production
       - ../../../config/core.yaml:/etc/hyperledger/peercfg/core.yaml
@@ -206,6 +212,8 @@ services:
       - FABRIC_CFG_PATH=/etc/hyperledger/peercfg
       - FABRIC_LOGGING_SPEC=INFO
       #- FABRIC_LOGGING_SPEC=DEBUG
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=eventchain_network
       - CORE_PEER_TLS_ENABLED=true
       - CORE_PEER_PROFILE_ENABLED=false
       - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
@@ -231,6 +239,7 @@ services:
     depends_on:
       - couchdb2
     volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
       - ../organizations/peerOrganizations/student.eventchain.com/peers/peer0.student.eventchain.com:/etc/hyperledger/fabric
       - peer0.student.eventchain.com:/var/hyperledger/production
       - ../../../config/core.yaml:/etc/hyperledger/peercfg/core.yaml

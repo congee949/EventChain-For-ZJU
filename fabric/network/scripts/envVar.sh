@@ -6,11 +6,16 @@
 #        setGlobals <org>     — sets env vars for the given org
 #        setOrdererGlobals    — sets env vars for orderer admin operations
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-NETWORK_DIR="$(dirname "$SCRIPT_DIR")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+# Ensure NETWORK_DIR always points to fabric/network regardless of how this file is sourced
+if [[ "$SCRIPT_DIR" == */scripts ]]; then
+  NETWORK_DIR="$(dirname "$SCRIPT_DIR")"
+else
+  NETWORK_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+fi
 
 export PATH="${NETWORK_DIR}/bin:$PATH"
-export FABRIC_CFG_PATH="${NETWORK_DIR}/configtx"
+export FABRIC_CFG_PATH="/Users/Apple/EventChain/config"
 
 export ORDERER_CA="${NETWORK_DIR}/organizations/ordererOrganizations/eventchain.com/tlsca/tlsca.eventchain.com-cert.pem"
 export ORDERER_ADMIN_TLS_SIGN_CERT="${NETWORK_DIR}/organizations/ordererOrganizations/eventchain.com/orderers/orderer.eventchain.com/tls/server.crt"
