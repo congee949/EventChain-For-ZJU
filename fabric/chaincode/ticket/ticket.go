@@ -475,6 +475,35 @@ func (tc *TicketContract) RefundTicket(ctx contractapi.TransactionContextInterfa
 	return nil
 }
 
+// GetUserTickets returns all tickets owned by a user
+func (tc *TicketContract) GetUserTickets(ctx contractapi.TransactionContextInterface, userID string) ([]*Ticket, error) {
+	if userID == "" {
+		return []*Ticket{}, nil
+	}
+
+	iterator, err := ctx.GetStub().GetStateByRange("ticket:", "ticket:~")
+	if err != nil {
+		return []*Ticket{}, nil
+	}
+	defer iterator.Close()
+
+	var tickets []*Ticket
+	for iterator.HasNext() {
+		queryResponse, err := iterator.Next()
+		if err != nil {
+			break
+		}
+		var ticket Ticket
+		if json.Unmarshal(queryResponse.Value, &ticket) == nil && ticket.OwnerID == userID {
+			tickets = append(tickets, &ticket)
+		}
+	}
+	if tickets == nil {
+		tickets = []*Ticket{}
+	}
+	return tickets, nil
+}
+
 func main() {
 	chaincode, err := contractapi.NewChaincode(&TicketContract{})
 	if err != nil {
