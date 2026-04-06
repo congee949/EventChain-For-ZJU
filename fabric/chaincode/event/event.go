@@ -1,8 +1,9 @@
-package event
+package main
 
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"strconv"
 	"time"
 
@@ -293,4 +294,14 @@ func (ec *EventContract) UpdateResult(ctx contractapi.TransactionContextInterfac
 	}
 
 	return nil
+}
+
+func main() {
+	chaincode, err := contractapi.NewChaincode(&EventContract{})
+	if err != nil {
+		log.Fatalf("Error creating chaincode: %v", err)
+	}
+	if err := chaincode.Start(); err != nil {
+		log.Fatalf("Error starting chaincode: %v", err)
+	}
 }

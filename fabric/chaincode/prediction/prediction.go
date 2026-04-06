@@ -1,8 +1,9 @@
-package prediction
+package main
 
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"strconv"
 	"time"
 
@@ -591,4 +592,14 @@ func (pc *PredictionContract) GetUserBets(ctx contractapi.TransactionContextInte
 	}
 
 	return bets, nil
+}
+
+func main() {
+	chaincode, err := contractapi.NewChaincode(&PredictionContract{})
+	if err != nil {
+		log.Fatalf("Error creating chaincode: %v", err)
+	}
+	if err := chaincode.Start(); err != nil {
+		log.Fatalf("Error starting chaincode: %v", err)
+	}
 }

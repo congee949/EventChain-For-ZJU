@@ -1,10 +1,11 @@
-package ticket
+package main
 
 import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"sort"
 	"strconv"
 	"time"
@@ -472,4 +473,14 @@ func (tc *TicketContract) RefundTicket(ctx contractapi.TransactionContextInterfa
 	}
 
 	return nil
+}
+
+func main() {
+	chaincode, err := contractapi.NewChaincode(&TicketContract{})
+	if err != nil {
+		log.Fatalf("Error creating chaincode: %v", err)
+	}
+	if err := chaincode.Start(); err != nil {
+		log.Fatalf("Error starting chaincode: %v", err)
+	}
 }

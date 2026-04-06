@@ -1,4 +1,4 @@
-package prediction
+package main
 
 import (
 	"encoding/json"

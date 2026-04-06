@@ -1,8 +1,9 @@
-package token
+package main
 
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"strconv"
 	"time"
 
@@ -356,4 +357,14 @@ func (tc *TokenContract) History(ctx contractapi.TransactionContextInterface, us
 // GetContractInfo provides metadata about the chaincode
 func (tc *TokenContract) GetContractInfo() contractapi.ContractInterface {
 	return tc
+}
+
+func main() {
+	chaincode, err := contractapi.NewChaincode(&TokenContract{})
+	if err != nil {
+		log.Fatalf("Error creating chaincode: %v", err)
+	}
+	if err := chaincode.Start(); err != nil {
+		log.Fatalf("Error starting chaincode: %v", err)
+	}
 }

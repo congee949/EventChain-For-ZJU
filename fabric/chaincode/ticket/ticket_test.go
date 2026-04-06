@@ -1,4 +1,4 @@
-package ticket
+package main
 
 import (
 	"crypto/sha256"
