@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sort"
 	"strconv"
 	"time"
 
@@ -592,6 +593,64 @@ func (pc *PredictionContract) GetUserBets(ctx contractapi.TransactionContextInte
 	}
 
 	return bets, nil
+}
+
+// GetLeaderboard returns top users sorted by accuracy rate (CouchDB rich query)
+func (pc *PredictionContract) GetLeaderboard(ctx contractapi.TransactionContextInterface) ([]*UserScore, error) {
+	queryString := `{"selector":{"docType":"score","totalBets":{"$gt":0}},"sort":[{"accuracyRate":"desc"}],"limit":20}`
+
+	iterator, err := ctx.GetStub().GetQueryResult(queryString)
+	if err != nil {
+		// Fallback: scan all scores by key range if rich query fails
+		iterator2, err2 := ctx.GetStub().GetStateByRange("score:", "score:~")
+		if err2 != nil {
+			return []*UserScore{}, nil
+		}
+		defer iterator2.Close()
+
+		var scores []*UserScore
+		for iterator2.HasNext() {
+			queryResponse, err3 := iterator2.Next()
+			if err3 != nil {
+				break
+			}
+			var score UserScore
+			if json.Unmarshal(queryResponse.Value, &score) == nil && score.TotalBets > 0 {
+				scores = append(scores, &score)
+			}
+		}
+
+		// Sort by accuracy descending
+		sort.Slice(scores, func(i, j int) bool {
+			return scores[i].AccuracyRate > scores[j].AccuracyRate
+		})
+
+		if len(scores) > 20 {
+			scores = scores[:20]
+		}
+		if scores == nil {
+			scores = []*UserScore{}
+		}
+		return scores, nil
+	}
+	defer iterator.Close()
+
+	var scores []*UserScore
+	for iterator.HasNext() {
+		queryResponse, err := iterator.Next()
+		if err != nil {
+			break
+		}
+		var score UserScore
+		if json.Unmarshal(queryResponse.Value, &score) == nil {
+			scores = append(scores, &score)
+		}
+	}
+
+	if scores == nil {
+		scores = []*UserScore{}
+	}
+	return scores, nil
 }
 
 func main() {
