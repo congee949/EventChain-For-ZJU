@@ -59,7 +59,7 @@ router.get('/pool/:eventID', async (req, res, next) => {
 // GET /api/v1/predictions/mine
 router.get('/mine', authenticate, async (req, res, next) => {
   try {
-    const bets = await evaluateTransaction(req.user.userId, CC, 'GetUserBets', req.user.userId);
+    const bets = await evaluateTransaction(req.user.userId, CC, 'GetUserBets', req.user.userId, '');
     res.json({ error: false, data: bets || [] });
   } catch (err) {
     next(err);
