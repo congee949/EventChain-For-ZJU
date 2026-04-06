@@ -14,9 +14,10 @@ export function buildConnectionProfile(orgMSP) {
   const orgMap = {
     PlatformMSP: {
       mspId: 'PlatformMSP',
-      peerHost: 'peer0.platform.eventchain.com',
+      peerHost: 'localhost',
       peerPort: 7051,
-      caHost: 'ca.platform.eventchain.com',
+      caHost: 'localhost',
+      caPort: 7054,
       tlsCertPath: path.join(
         networkRoot,
         'organizations/peerOrganizations/platform.eventchain.com/peers/peer0.platform.eventchain.com/tls/ca.crt'
@@ -24,9 +25,10 @@ export function buildConnectionProfile(orgMSP) {
     },
     OrganizerMSP: {
       mspId: 'OrganizerMSP',
-      peerHost: 'peer0.organizer.eventchain.com',
+      peerHost: 'localhost',
       peerPort: 9051,
-      caHost: 'ca.organizer.eventchain.com',
+      caHost: 'localhost',
+      caPort: 8054,
       tlsCertPath: path.join(
         networkRoot,
         'organizations/peerOrganizations/organizer.eventchain.com/peers/peer0.organizer.eventchain.com/tls/ca.crt'
@@ -34,9 +36,10 @@ export function buildConnectionProfile(orgMSP) {
     },
     StudentMSP: {
       mspId: 'StudentMSP',
-      peerHost: 'peer0.student.eventchain.com',
+      peerHost: 'localhost',
       peerPort: 11051,
-      caHost: 'ca.student.eventchain.com',
+      caHost: 'localhost',
+      caPort: 9054,
       tlsCertPath: path.join(
         networkRoot,
         'organizations/peerOrganizations/student.eventchain.com/peers/peer0.student.eventchain.com/tls/ca.crt'

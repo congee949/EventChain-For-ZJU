@@ -1,4 +1,5 @@
 import FabricCAServices from 'fabric-ca-client';
+import { User } from 'fabric-common';
 import { buildConnectionProfile } from '../config/fabric.js';
 import { putIdentity, getIdentity } from './wallet.js';
 
@@ -9,11 +10,11 @@ function getCAClient(orgMSP) {
   if (caClients[orgMSP]) return caClients[orgMSP];
 
   const orgConfig = buildConnectionProfile(orgMSP);
-  const caUrl = `https://${orgConfig.caHost}:7054`;
+  const caUrl = `https://${orgConfig.caHost}:${orgConfig.caPort}`;
   const caClient = new FabricCAServices(caUrl, {
     trustedRoots: [],
     verify: false, // dev only — accept self-signed CA certs
-  }, orgConfig.caHost);
+  });
 
   caClients[orgMSP] = caClient;
   return caClient;
@@ -41,22 +42,14 @@ export async function registerAndEnrollUser(userId, orgMSP) {
   // Ensure the CA admin is enrolled first
   const adminIdentity = await enrollAdmin(orgMSP);
 
-  // Build an admin User object that fabric-ca-client can use for registration
-  const adminUser = {
-    getName: () => `admin-${orgMSP}`,
-    getMSPId: () => orgMSP,
-    getIdentity: () => ({
-      serialize: () => adminIdentity.credentials.certificate,
-    }),
-    getSigningIdentity: () => ({
-      sign: (msg) => {
-        const { createSign } = require('node:crypto');
-        const sign = createSign('SHA256');
-        sign.update(msg);
-        return sign.sign(adminIdentity.credentials.privateKey);
-      },
-    }),
-  };
+  // Build admin User object required by fabric-ca-client register()
+  const adminUser = User.createUser(
+    `admin-${orgMSP}`,
+    '',
+    orgMSP,
+    adminIdentity.credentials.certificate,
+    adminIdentity.credentials.privateKey
+  );
 
   // Register
   const secret = await caClient.register(

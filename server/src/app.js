@@ -8,6 +8,7 @@ import predictionRoutes from './routes/predictions.js';
 import ticketRoutes from './routes/tickets.js';
 import userRoutes from './routes/users.js';
 import { initDB } from './services/wallet.js';
+import { enrollAdmin } from './services/caService.js';
 
 const app = express();
 
@@ -33,6 +34,14 @@ app.use(errorHandler);
 // --------------- Start ---------------
 async function main() {
   initDB();
+
+  // Enroll CA admins so public queries (e.g. GET /events) have a Fabric identity
+  console.log('[EventChain] Enrolling CA admins...');
+  await enrollAdmin('PlatformMSP');
+  await enrollAdmin('OrganizerMSP');
+  await enrollAdmin('StudentMSP');
+  console.log('[EventChain] CA admins enrolled.');
+
   app.listen(config.port, () => {
     console.log(`[EventChain] Server listening on http://localhost:${config.port}`);
   });

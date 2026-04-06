@@ -31,8 +31,8 @@ api.interceptors.response.use(
       const body = resp.data;
       const message = body?.message || '请求失败';
 
-      // Auto-logout on 401
-      if (resp.status === 401) {
+      // Auto-logout on 401 only if user was logged in
+      if (resp.status === 401 && localStorage.getItem('ec_token')) {
         localStorage.removeItem('ec_token');
         localStorage.removeItem('ec_user');
         window.location.href = '/login';
