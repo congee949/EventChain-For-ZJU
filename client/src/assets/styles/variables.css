@@ -1,0 +1,45 @@
+:root {
+  /* ---------- Brand palette ---------- */
+  --color-primary: #6366f1;
+  --color-primary-light: #818cf8;
+  --color-primary-dark: #4f46e5;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #3b82f6;
+
+  /* ---------- Neutral ---------- */
+  --color-text: #1e293b;
+  --color-text-secondary: #64748b;
+  --color-text-tertiary: #94a3b8;
+  --color-border: rgba(255, 255, 255, 0.35);
+
+  /* ---------- Glass material tokens ---------- */
+  --glass-dense-bg: rgba(255, 255, 255, 0.35);
+  --glass-dense-blur: 32px;
+  --glass-dense-saturate: 2;
+
+  --glass-bg: rgba(255, 255, 255, 0.22);
+  --glass-blur: 24px;
+  --glass-saturate: 1.8;
+
+  --glass-subtle-bg: rgba(255, 255, 255, 0.12);
+  --glass-subtle-blur: 16px;
+  --glass-subtle-saturate: 1.4;
+
+  /* ---------- Specular highlight ---------- */
+  --highlight-x: 30%;
+  --highlight-y: 20%;
+
+  /* ---------- Radius ---------- */
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 24px;
+
+  /* ---------- Shadows ---------- */
+  --shadow-card: 0 8px 40px rgba(0, 0, 0, 0.06);
+  --shadow-card-hover: 0 12px 48px rgba(0, 0, 0, 0.1);
+
+  /* ---------- Transitions ---------- */
+  --transition-base: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
