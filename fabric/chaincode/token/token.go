@@ -354,11 +354,6 @@ func (tc *TokenContract) History(ctx contractapi.TransactionContextInterface, us
 	return records, nil
 }
 
-// GetContractInfo provides metadata about the chaincode
-func (tc *TokenContract) GetContractInfo() contractapi.ContractInterface {
-	return tc
-}
-
 func main() {
 	chaincode, err := contractapi.NewChaincode(&TokenContract{})
 	if err != nil {
