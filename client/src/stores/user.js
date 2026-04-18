@@ -28,6 +28,7 @@ export const useUserStore = defineStore('user', () => {
   async function refreshBalance() {
     const p = await api.get('/users/profile');
     balance.value = p.balance ?? 0;
+    profile.value = p;
   }
 
   return {

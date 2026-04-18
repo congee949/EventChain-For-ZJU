@@ -36,10 +36,21 @@ type Bet struct {
 	Timestamp string `json:"timestamp"`
 }
 
-// UserScore tracks a user's prediction accuracy
+// UserScore tracks a user's prediction accuracy.
+//
+// Field semantics (these are NOT all the same thing):
+//   - PlacedBets: # of PlaceBet calls the user made (incremented in PlaceBet)
+//   - TotalBets:  # of unique events the user participated in that have been settled
+//                 (incremented in Settle, deduplicated per event)
+//   - CorrectBets: # of those settled events where at least one of the user's bets won
+//   - AccuracyRate: CorrectBets / TotalBets
+//
+// PlacedBets is the user-facing "总下注" counter. TotalBets is the denominator
+// for accuracy and only makes sense after settlement.
 type UserScore struct {
 	DocType      string  `json:"docType"`
 	UserID       string  `json:"userID"`
+	PlacedBets   int     `json:"placedBets"`
 	TotalBets    int     `json:"totalBets"`
 	CorrectBets  int     `json:"correctBets"`
 	AccuracyRate float64 `json:"accuracyRate"`
@@ -174,7 +185,7 @@ func (pc *PredictionContract) PlaceBet(ctx contractapi.TransactionContextInterfa
 		[]byte(poolAccountID),
 		[]byte(amountStr),
 	}
-	transferResp := ctx.GetStub().InvokeChaincode("token-cc", transferArgs, "eventchain")
+	transferResp := ctx.GetStub().InvokeChaincode("token", transferArgs, "eventchain")
 	if transferResp.Status != 200 {
 		return nil, fmt.Errorf("token transfer failed: %s", transferResp.Message)
 	}
@@ -239,6 +250,31 @@ func (pc *PredictionContract) PlaceBet(ctx contractapi.TransactionContextInterfa
 	err = ctx.GetStub().PutState(betKey, betJSON)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store bet: %s", err.Error())
+	}
+
+	// Increment the user's PlacedBets counter so the UI's "总下注" label
+	// reflects every PlaceBet call (not just settled ones — TotalBets is
+	// the post-settlement counter used for accuracy).
+	scoreKey := "score:" + userID
+	scoreBytes, scoreErr := ctx.GetStub().GetState(scoreKey)
+	if scoreErr != nil {
+		return nil, fmt.Errorf("failed to read score: %s", scoreErr.Error())
+	}
+	var score UserScore
+	if scoreBytes != nil {
+		if err := json.Unmarshal(scoreBytes, &score); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal score: %s", err.Error())
+		}
+	} else {
+		score = UserScore{DocType: "score", UserID: userID}
+	}
+	score.PlacedBets++
+	scoreJSON, err := json.Marshal(&score)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal score: %s", err.Error())
+	}
+	if err := ctx.GetStub().PutState(scoreKey, scoreJSON); err != nil {
+		return nil, fmt.Errorf("failed to update score: %s", err.Error())
 	}
 
 	// Calculate new probabilities
@@ -407,7 +443,7 @@ func (pc *PredictionContract) Settle(ctx contractapi.TransactionContextInterface
 					[]byte(bet.UserID),
 					[]byte(strconv.FormatInt(payout, 10)),
 				}
-				transferResp := ctx.GetStub().InvokeChaincode("token-cc", transferArgs, "eventchain")
+				transferResp := ctx.GetStub().InvokeChaincode("token", transferArgs, "eventchain")
 				if transferResp.Status != 200 {
 					return nil, fmt.Errorf("failed to transfer payout to %s: %s", bet.UserID, transferResp.Message)
 				}

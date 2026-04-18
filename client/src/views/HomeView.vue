@@ -107,8 +107,8 @@ function goToEvent(id) {
               <span class="stat-label">准确率</span>
             </div>
             <div class="stat">
-              <span class="stat-value">{{ userStore.profile.totalBets }}</span>
-              <span class="stat-label">总预测</span>
+              <span class="stat-value">{{ userStore.profile.placedBets ?? 0 }}</span>
+              <span class="stat-label">总下注</span>
             </div>
           </div>
         </GlassCard>

@@ -23,8 +23,8 @@ export const usePredictionStore = defineStore('prediction', () => {
     loading.value = true;
     try {
       const result = await api.post('/predictions/bet', { eventID, option, amount });
-      // result: { shares, newOddsA, newOddsB }
-      odds.value = { probA: result.newOddsA, probB: result.newOddsB };
+      // result: { shares, probA, probB }
+      odds.value = { probA: result.probA, probB: result.probB };
       return result;
     } finally {
       loading.value = false;

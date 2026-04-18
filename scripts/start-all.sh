@@ -12,7 +12,8 @@ echo "=========================================="
 echo ""
 echo "[1/5] 启动 Fabric 网络..."
 cd "$PROJECT_DIR/fabric/network"
-./network.sh up createChannel -ca -s couchdb
+./network.sh up
+./network.sh createChannel
 
 # Step 2: Deploy chaincodes
 echo ""
@@ -34,7 +35,11 @@ echo "[4/5] 启动后端 (端口 3000)..."
 npm start &
 SERVER_PID=$!
 echo "后端 PID: $SERVER_PID"
-sleep 3
+echo "等待后端就绪..."
+for i in $(seq 1 30); do
+  curl -s http://localhost:3000/api/health > /dev/null 2>&1 && break
+  sleep 1
+done
 
 # Step 5: Start frontend
 echo ""

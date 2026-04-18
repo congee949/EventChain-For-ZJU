@@ -40,13 +40,26 @@ joinOrdererToChannel() {
   echo ""
   echo "Joining orderer to channel '${CHANNEL_NAME}'..."
 
-  osnadmin channel join \
-    --channelID "$CHANNEL_NAME" \
-    --config-block "${NETWORK_DIR}/channel-artifacts/${CHANNEL_NAME}.block" \
-    -o localhost:7053 \
-    --ca-file "$ORDERER_CA" \
-    --client-cert "$ORDERER_ADMIN_TLS_SIGN_CERT" \
-    --client-key "$ORDERER_ADMIN_TLS_PRIVATE_KEY"
+  # Retry — orderer admin endpoint may take a few seconds after container start
+  local attempts=0
+  while true; do
+    if osnadmin channel join \
+      --channelID "$CHANNEL_NAME" \
+      --config-block "${NETWORK_DIR}/channel-artifacts/${CHANNEL_NAME}.block" \
+      -o localhost:7053 \
+      --ca-file "$ORDERER_CA" \
+      --client-cert "$ORDERER_ADMIN_TLS_SIGN_CERT" \
+      --client-key "$ORDERER_ADMIN_TLS_PRIVATE_KEY"; then
+      break
+    fi
+    attempts=$((attempts + 1))
+    if [ "$attempts" -ge 10 ]; then
+      echo "ERROR: orderer channel join failed after 10 attempts"
+      exit 1
+    fi
+    echo "Orderer admin endpoint not ready, retrying in ${DELAY}s... (${attempts}/10)"
+    sleep "$DELAY"
+  done
 
   echo "Orderer joined channel '${CHANNEL_NAME}'"
 
@@ -63,7 +76,7 @@ joinOrdererToChannel() {
 # ============================================================
 joinPeerToChannel() {
   local org="$1"
-  export FABRIC_CFG_PATH="/Users/Apple/EventChain/config"
+  export FABRIC_CFG_PATH="$(cd "${NETWORK_DIR}/../../config" && pwd)"
   setGlobals "$org"
 
   local counter=0
@@ -85,21 +98,40 @@ joinPeerToChannel() {
 
 # ============================================================
 # Set anchor peer for an org
+#
+# NOTE: This function is currently UNUSED. The anchor peer step was removed
+# from the Main section below because configtx.yaml already declares anchor
+# peers in each org block, and the genesis profile pulls them in. The
+# function is preserved here so you can re-enable it if you ever need to
+# add anchor peers AFTER channel creation (e.g., adding a new org). To
+# re-enable, uncomment the `setAnchorPeer …` calls in the Main section.
 # ============================================================
 setAnchorPeer() {
   local org="$1"
-  export FABRIC_CFG_PATH="/Users/Apple/EventChain/config"
+  export FABRIC_CFG_PATH="$(cd "${NETWORK_DIR}/../../config" && pwd)"
   setGlobals "$org"
 
   echo "Setting anchor peer for ${org}..."
 
-  # Fetch current channel config
-  peer channel fetch config "${NETWORK_DIR}/channel-artifacts/config_block.pb" \
-    -o localhost:7050 \
-    --ordererTLSHostnameOverride orderer.eventchain.com \
-    -c "$CHANNEL_NAME" \
-    --tls \
-    --cafile "$ORDERER_CA"
+  # Fetch current channel config (with retry — orderer may still be committing)
+  local fetch_attempts=0
+  while true; do
+    if peer channel fetch config "${NETWORK_DIR}/channel-artifacts/config_block.pb" \
+      -o localhost:7050 \
+      --ordererTLSHostnameOverride orderer.eventchain.com \
+      -c "$CHANNEL_NAME" \
+      --tls \
+      --cafile "$ORDERER_CA"; then
+      break
+    fi
+    fetch_attempts=$((fetch_attempts + 1))
+    if [ "$fetch_attempts" -ge 10 ]; then
+      echo "ERROR: failed to fetch channel config after 10 attempts"
+      exit 1
+    fi
+    echo "Channel config fetch failed, retrying in 3s... (${fetch_attempts}/10)"
+    sleep 3
+  done
 
   cd "${NETWORK_DIR}/channel-artifacts"
 
@@ -220,14 +252,17 @@ joinPeerToChannel organizer
 joinPeerToChannel student
 
 # Step 4: Set anchor peers for each org
+# NOTE: Skipped — AnchorPeers are already baked into the genesis block via
+# configtx.yaml (each org has an `AnchorPeers:` list and the Genesis profile
+# includes all orgs under Application). In Fabric 2.x, the separate
+# "peer channel update" step for anchor peers is only needed when anchor
+# peers are added AFTER channel creation. For a fresh network boot we can
+# skip it entirely and the config update BAD_REQUEST bug goes away.
 echo ""
-echo "Setting anchor peers..."
-setAnchorPeer platform
-setAnchorPeer organizer
-setAnchorPeer student
+echo "Anchor peers already in genesis block (configtx.yaml) — skipping update"
 
 echo ""
 echo "============================================"
 echo " Channel '${CHANNEL_NAME}' ready"
-echo " All 3 peers joined, anchor peers configured"
+echo " All 3 peers joined"
 echo "============================================"

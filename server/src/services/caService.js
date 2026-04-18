@@ -36,6 +36,13 @@ export async function enrollAdmin(orgMSP) {
 }
 
 // Register and enroll a new user with the org's CA.
+//
+// Idempotent: passes an explicit deterministic secret on first registration so
+// re-enrollment works after server-side wallet/db wipes (the CA's identity DB
+// outlives the server's SQLite, so a fresh server with a re-registered user
+// would otherwise hit "Identity already registered" code 74 and have no way
+// to re-enroll). The secret is derived from userId and is demo-only — for
+// production, store a randomly generated secret in a secure key store.
 export async function registerAndEnrollUser(userId, orgMSP) {
   const caClient = getCAClient(orgMSP);
 
@@ -51,15 +58,27 @@ export async function registerAndEnrollUser(userId, orgMSP) {
     adminIdentity.credentials.privateKey
   );
 
-  // Register
-  const secret = await caClient.register(
-    {
-      affiliation: '',
-      enrollmentID: userId,
-      role: 'client',
-    },
-    adminUser
-  );
+  // Deterministic per-user secret so re-enroll works after wallet wipe.
+  const secret = `${userId}-pw`;
+
+  // Register (idempotent — swallow "already registered" errors)
+  try {
+    await caClient.register(
+      {
+        affiliation: '',
+        enrollmentID: userId,
+        enrollmentSecret: secret,
+        role: 'client',
+      },
+      adminUser
+    );
+  } catch (err) {
+    const msg = String(err?.message || '');
+    if (!msg.includes('already registered') && !msg.includes('code: 74')) {
+      throw err;
+    }
+    // Already registered — proceed to enroll with the deterministic secret.
+  }
 
   // Enroll
   const enrollment = await caClient.enroll({

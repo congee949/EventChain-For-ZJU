@@ -16,8 +16,8 @@ export const useTicketStore = defineStore('ticket', () => {
     }
   }
 
-  async function runLottery(eventID) {
-    const result = await api.post(`/tickets/lottery/${eventID}`);
+  async function runLottery(eventID, ticketCount) {
+    const result = await api.post(`/tickets/lottery/${eventID}`, { ticketCount });
     return result;
   }
 

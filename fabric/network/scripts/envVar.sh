@@ -15,7 +15,9 @@ else
 fi
 
 export PATH="${NETWORK_DIR}/bin:$PATH"
-export FABRIC_CFG_PATH="/Users/Apple/EventChain/config"
+# Project root config dir (contains core.yaml). Computed relative so it
+# works on any machine, not just /Users/Apple/EventChain.
+export FABRIC_CFG_PATH="$(cd "${NETWORK_DIR}/../../config" && pwd)"
 
 export ORDERER_CA="${NETWORK_DIR}/organizations/ordererOrganizations/eventchain.com/tlsca/tlsca.eventchain.com-cert.pem"
 export ORDERER_ADMIN_TLS_SIGN_CERT="${NETWORK_DIR}/organizations/ordererOrganizations/eventchain.com/orderers/orderer.eventchain.com/tls/server.crt"

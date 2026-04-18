@@ -17,11 +17,13 @@ router.post('/apply', authenticate, async (req, res, next) => {
       throw err;
     }
 
+    // Chaincode ApplyTicket signature: (eventID, userID)
     const result = await submitTransaction(
       req.user.userId,
       CC,
       'ApplyTicket',
-      eventID
+      eventID,
+      req.user.userId
     );
 
     res.status(201).json({ error: false, data: result });
@@ -31,13 +33,24 @@ router.post('/apply', authenticate, async (req, res, next) => {
 });
 
 // POST /api/v1/tickets/lottery/:eventID  [Organizer]
+// Body: { ticketCount }  — number of winners to draw
 router.post('/lottery/:eventID', authenticate, requireRole('organizer', 'admin'), async (req, res, next) => {
   try {
+    const { ticketCount } = req.body;
+    const ticketCountNum = Number(ticketCount);
+    if (!Number.isInteger(ticketCountNum) || ticketCountNum <= 0) {
+      const err = new Error('ticketCount 必须为正整数');
+      err.code = 'VALIDATION_ERROR';
+      throw err;
+    }
+
+    // Chaincode RunLottery signature: (eventID, ticketCountStr)
     const result = await submitTransaction(
       req.user.userId,
       CC,
       'RunLottery',
-      req.params.eventID
+      req.params.eventID,
+      String(ticketCountNum)
     );
 
     res.json({ error: false, data: result });
@@ -61,14 +74,17 @@ router.get('/mine', authenticate, async (req, res, next) => {
   }
 });
 
-// POST /api/v1/tickets/claim/:ticketID
-router.post('/claim/:ticketID', authenticate, async (req, res, next) => {
+// POST /api/v1/tickets/claim/:eventID
+// Chaincode ClaimTicket(eventID, userID) — claims the ticket the caller won
+// in the lottery for that event. Route param is the EVENT id, not a ticket id.
+router.post('/claim/:eventID', authenticate, async (req, res, next) => {
   try {
     const result = await submitTransaction(
       req.user.userId,
       CC,
       'ClaimTicket',
-      req.params.ticketID
+      req.params.eventID,
+      req.user.userId
     );
 
     // result includes { ticketID, claimHash } — frontend uses claimHash for QR
@@ -97,13 +113,15 @@ router.get('/verify/:ticketID', async (req, res, next) => {
 });
 
 // POST /api/v1/tickets/refund/:ticketID
+// Chaincode RefundTicket(ticketID, userID)
 router.post('/refund/:ticketID', authenticate, async (req, res, next) => {
   try {
     const result = await submitTransaction(
       req.user.userId,
       CC,
       'RefundTicket',
-      req.params.ticketID
+      req.params.ticketID,
+      req.user.userId
     );
 
     res.json({ error: false, data: result });

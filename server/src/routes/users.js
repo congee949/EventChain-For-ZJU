@@ -37,6 +37,9 @@ router.get('/profile', authenticate, async (req, res, next) => {
         name: userRow?.name || userId,
         role: userRow?.role || 'student',
         balance: balance?.balance ?? 0,
+        // placedBets: # of PlaceBet calls (incremented on every bet)
+        // totalBets:  # of settled events (denominator for accuracy)
+        placedBets: score?.placedBets ?? 0,
         totalBets: score?.totalBets ?? 0,
         correctBets: score?.correctBets ?? 0,
         accuracyRate: score?.accuracyRate ?? 0,

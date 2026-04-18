@@ -1,0 +1,10 @@
+{
+  "index": {
+    "fields": [
+      {"accuracyRate": "desc"}
+    ]
+  },
+  "ddoc": "indexLeaderboardDoc",
+  "name": "indexLeaderboard",
+  "type": "json"
+}

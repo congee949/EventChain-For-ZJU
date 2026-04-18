@@ -18,11 +18,13 @@ router.post('/bet', authenticate, async (req, res, next) => {
       throw err;
     }
 
+    // Chaincode PlaceBet signature: (eventID, userID, option, amountStr)
     const result = await submitTransaction(
       req.user.userId,
       CC,
       'PlaceBet',
       eventID,
+      req.user.userId,
       option,
       String(amount)
     );

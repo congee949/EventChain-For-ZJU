@@ -52,27 +52,27 @@ echo "[2/4] 创建赛事..."
 
 ORG_TOKEN=$(curl -s -X POST "$API_BASE/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"studentID":"organizer01","password":"org123"}' | jq -r '.token')
+  -d '{"studentID":"organizer01","password":"org123"}' | jq -r '.data.token')
 
 curl -s -X POST "$API_BASE/events" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $ORG_TOKEN" \
-  -d '{"title":"院际篮球决赛","type":"basketball","teams":["教院","丹青"],"ticketTotal":200,"predictionOptions":["教院赢","丹青赢"]}' | jq .
+  -d '{"eventID":"evt001","title":"院际篮球决赛","type":"basketball","teams":["教院","丹青"],"ticketTotal":200,"predictionOptions":["教院赢","丹青赢"]}' | jq .
 
 curl -s -X POST "$API_BASE/events" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $ORG_TOKEN" \
-  -d '{"title":"校运会足球半决赛","type":"football","teams":["竺院","蓝田"],"ticketTotal":300,"predictionOptions":["竺院赢","蓝田赢"]}' | jq .
+  -d '{"eventID":"evt002","title":"校运会足球半决赛","type":"football","teams":["竺院","蓝田"],"ticketTotal":300,"predictionOptions":["竺院赢","蓝田赢"]}' | jq .
 
 curl -s -X POST "$API_BASE/events" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $ORG_TOKEN" \
-  -d '{"title":"英雄联盟校赛决赛","type":"esports","teams":["CS战队","EE战队"],"ticketTotal":150,"predictionOptions":["CS战队赢","EE战队赢"]}' | jq .
+  -d '{"eventID":"evt003","title":"英雄联盟校赛决赛","type":"esports","teams":["CS战队","EE战队"],"ticketTotal":150,"predictionOptions":["CS战队赢","EE战队赢"]}' | jq .
 
 curl -s -X POST "$API_BASE/events" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $ORG_TOKEN" \
-  -d '{"title":"羽毛球团体赛","type":"badminton","teams":["求是","云峰"],"ticketTotal":100,"predictionOptions":["求是赢","云峰赢"]}' | jq .
+  -d '{"eventID":"evt004","title":"羽毛球团体赛","type":"badminton","teams":["求是","云峰"],"ticketTotal":100,"predictionOptions":["求是赢","云峰赢"]}' | jq .
 
 echo ""
 echo "开放预测市场..."
@@ -104,7 +104,7 @@ for BET in "${BETS[@]}"; do
   IFS=':' read -r SID PWD EVT OPT AMT <<< "$BET"
   TOKEN=$(curl -s -X POST "$API_BASE/auth/login" \
     -H "Content-Type: application/json" \
-    -d "{\"studentID\":\"$SID\",\"password\":\"$PWD\"}" | jq -r '.token')
+    -d "{\"studentID\":\"$SID\",\"password\":\"$PWD\"}" | jq -r '.data.token')
 
   curl -s -X POST "$API_BASE/predictions/bet" \
     -H "Content-Type: application/json" \
@@ -125,7 +125,7 @@ curl -s -X PUT "$API_BASE/events/evt001/status" \
 for SID in 3220100001 3220100002 3220100003 3220100004 3220100005; do
   TOKEN=$(curl -s -X POST "$API_BASE/auth/login" \
     -H "Content-Type: application/json" \
-    -d "{\"studentID\":\"$SID\",\"password\":\"student123\"}" | jq -r '.token')
+    -d "{\"studentID\":\"$SID\",\"password\":\"student123\"}" | jq -r '.data.token')
 
   curl -s -X POST "$API_BASE/tickets/apply" \
     -H "Content-Type: application/json" \
@@ -134,7 +134,9 @@ for SID in 3220100001 3220100002 3220100003 3220100004 3220100005; do
 done
 
 curl -s -X POST "$API_BASE/tickets/lottery/evt001" \
-  -H "Authorization: Bearer $ORG_TOKEN" | jq .
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ORG_TOKEN" \
+  -d '{"ticketCount":3}' | jq .
 
 curl -s -X PUT "$API_BASE/events/evt001/status" \
   -H "Content-Type: application/json" \

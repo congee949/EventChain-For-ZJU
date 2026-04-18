@@ -167,7 +167,7 @@ func (tc *TicketContract) RunLottery(ctx contractapi.TransactionContextInterface
 			[]byte("PredictionContract:GetUserScore"),
 			[]byte(app.UserID),
 		}
-		scoreResp := ctx.GetStub().InvokeChaincode("prediction-cc", scoreArgs, "eventchain")
+		scoreResp := ctx.GetStub().InvokeChaincode("prediction", scoreArgs, "eventchain")
 
 		var accuracyRate float64
 		if scoreResp.Status == 200 && scoreResp.Payload != nil {

@@ -77,8 +77,7 @@ async function handleRefund(ticketID) {
           </div>
           <div class="te-teams">{{ event.teams?.[0] }} VS {{ event.teams?.[1] }}</div>
           <div class="te-countdown">
-            <span class="te-countdown-label">抽签倒计时</span>
-            <CountdownTimer :target-time="event.lotteryTime || '2026-04-10T20:00:00'" />
+            <span class="te-status-label">抽签进行中</span>
           </div>
           <button class="apply-btn" @click="handleApply(event.id)">
             申请购票
@@ -211,6 +210,12 @@ async function handleRefund(ticketID) {
 .te-countdown-label {
   font-size: 13px;
   color: var(--color-text-tertiary);
+}
+
+.te-status-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-success);
 }
 
 .apply-btn {

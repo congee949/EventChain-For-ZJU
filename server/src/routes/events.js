@@ -7,12 +7,18 @@ const router = Router();
 const CC = config.fabric.chaincode.event;
 const CC_PRED = config.fabric.chaincode.prediction;
 
+// Optional auth for GET — attach user identity if token is present
+router.use('/', (req, _res, next) => {
+  if (req.method === 'GET' && req.headers.authorization) {
+    return authenticate(req, _res, next);
+  }
+  next();
+});
+
 // GET /api/v1/events?status=PREDICTION_OPEN&type=basketball
 router.get('/', async (req, res, next) => {
   try {
-    // Public — use a platform admin identity for read-only queries
-    const userId = req.headers.authorization ? undefined : 'admin-PlatformMSP';
-    const queryUserId = req.user?.userId || userId || 'admin-PlatformMSP';
+    const queryUserId = req.user?.userId || 'admin-PlatformMSP';
 
     const { status, type } = req.query;
     const result = await evaluateTransaction(
@@ -26,14 +32,6 @@ router.get('/', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-});
-
-// Use auth middleware optionally for GET — pass through if no token
-router.get('/', (req, _res, next) => {
-  if (req.headers.authorization) {
-    return authenticate(req, _res, next);
-  }
-  next();
 });
 
 // GET /api/v1/events/:id
@@ -69,22 +67,50 @@ router.get('/:id', async (req, res, next) => {
 // POST /api/v1/events  [Organizer]
 router.post('/', authenticate, requireRole('organizer', 'admin'), async (req, res, next) => {
   try {
-    const { title, type, teams, ticketTotal, predictionOptions } = req.body;
+    const { eventID, title, type, teams, ticketTotal, predictionOptions } = req.body;
 
-    if (!title || !type || !teams || !predictionOptions) {
-      const err = new Error('缺少必要字段');
+    if (!eventID || !title || !type || !teams || !predictionOptions || ticketTotal == null) {
+      const err = new Error('缺少必要字段 (eventID, title, type, teams, ticketTotal, predictionOptions)');
       err.code = 'VALIDATION_ERROR';
       throw err;
     }
 
-    const result = await submitTransaction(
+    // eventID becomes part of the chaincode state key (`event:<eventID>`).
+    // Restrict to alphanumerics + dash/underscore so it can't collide with the
+    // namespace separator or contain weird characters.
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(eventID)) {
+      const err = new Error('eventID 格式无效（仅允许字母数字_-，长度 1-64）');
+      err.code = 'VALIDATION_ERROR';
+      throw err;
+    }
+
+    // Chaincode requires ticketTotal > 0 (event.go validates and rejects <= 0).
+    // Don't fall back to 0 silently — that just shifts the error to chaincode.
+    const ticketTotalNum = Number(ticketTotal);
+    if (!Number.isInteger(ticketTotalNum) || ticketTotalNum <= 0) {
+      const err = new Error('ticketTotal 必须为正整数');
+      err.code = 'VALIDATION_ERROR';
+      throw err;
+    }
+
+    // Chaincode CreateEvent signature:
+    // (eventID, title, eventType, teamsJSON, ticketTotalStr, optionsJSON)
+    await submitTransaction(
       req.user.userId,
       CC,
       'CreateEvent',
-      JSON.stringify({ title, type, teams, ticketTotal: ticketTotal || 0, predictionOptions })
+      eventID,
+      title,
+      type,
+      JSON.stringify(teams),
+      String(ticketTotalNum),
+      JSON.stringify(predictionOptions)
     );
 
-    res.status(201).json({ error: false, data: result });
+    // Read back the canonical event from chaincode (includes status, createdAt, etc.)
+    // so the response isn't a fabricated stub.
+    const created = await evaluateTransaction(req.user.userId, CC, 'QueryEvent', eventID);
+    res.status(201).json({ error: false, data: created });
   } catch (err) {
     next(err);
   }
@@ -108,6 +134,33 @@ router.put('/:id/status', authenticate, requireRole('organizer', 'admin'), async
       status
     );
 
+    // When opening prediction market, initialize the prediction pool
+    // (the prediction chaincode requires a pool to exist before bets can be placed)
+    //
+    // CONSISTENCY WINDOW: UpdateStatus and InitializePool are two separate
+    // chaincode submits. Fabric has no multi-chaincode atomic transaction,
+    // so if InitializePool fails after UpdateStatus already committed, the
+    // event is stuck in PREDICTION_OPEN with no pool, and the state machine
+    // is forward-only — there's no way to revert.
+    //
+    // This is unhandled on purpose for the demo. In practice InitializePool
+    // doesn't fail unless the chaincode itself crashes. For real deploys,
+    // wrap this in try/catch and expose POST /events/:id/init-pool as a
+    // recovery endpoint so admins can re-trigger it.
+    if (status === 'PREDICTION_OPEN') {
+      const evt = await evaluateTransaction(req.user.userId, CC, 'QueryEvent', req.params.id);
+      if (evt && evt.predictionOptions && evt.predictionOptions.length >= 2) {
+        await submitTransaction(
+          req.user.userId,
+          CC_PRED,
+          'InitializePool',
+          req.params.id,
+          evt.predictionOptions[0],
+          evt.predictionOptions[1]
+        );
+      }
+    }
+
     res.json({ error: false, data: result });
   } catch (err) {
     next(err);
@@ -129,11 +182,13 @@ router.put('/:id/result', authenticate, requireRole('organizer', 'admin'), async
     await submitTransaction(req.user.userId, CC, 'UpdateResult', req.params.id, outcome);
 
     // 2. Trigger settlement in prediction chaincode
+    // Chaincode Settle signature: (eventID, winningOption)
     const settlement = await submitTransaction(
       req.user.userId,
       CC_PRED,
       'Settle',
-      req.params.id
+      req.params.id,
+      outcome
     );
 
     res.json({ error: false, data: settlement });

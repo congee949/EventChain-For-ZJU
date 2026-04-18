@@ -8,13 +8,39 @@ import { submitTransaction } from '../services/fabricGateway.js';
 const router = Router();
 
 // POST /api/v1/auth/register
-// Body: { studentID, password, name }
+// Body: { studentID, password, name, role? }  (role defaults to 'student')
+//
+// SECURITY: NOT FOR PRODUCTION. This endpoint is publicly accessible AND
+// honors a `role` field from the request body, so anyone can self-register
+// as `organizer` or `admin` and obtain a privileged JWT. The damage isn't
+// just in-app: registerAndEnrollUser also enrolls a real Fabric CA identity
+// under the corresponding MSP (PlatformMSP for admin, OrganizerMSP for
+// organizer), so the attacker walks away with an actual on-chain admin cert
+// in the server wallet. This is acceptable for the school project demo only.
+// Before any real deployment, either:
+//   (a) drop the role parameter and only create students here, then expose
+//       a separate /admin/users endpoint behind admin auth, OR
+//   (b) require an existing admin token to register privileged roles.
 router.post('/register', async (req, res, next) => {
   try {
-    const { studentID, password, name } = req.body;
+    const { studentID, password, name, role: requestedRole } = req.body;
 
     if (!studentID || !password || !name) {
       const err = new Error('studentID, password, name 均为必填');
+      err.code = 'VALIDATION_ERROR';
+      throw err;
+    }
+
+    // Validate role and map to corresponding MSP
+    const role = requestedRole || 'student';
+    const ROLE_TO_MSP = {
+      student: 'StudentMSP',
+      organizer: 'OrganizerMSP',
+      admin: 'PlatformMSP',
+    };
+    const orgMSP = ROLE_TO_MSP[role];
+    if (!orgMSP) {
+      const err = new Error(`无效的角色: ${role}`);
       err.code = 'VALIDATION_ERROR';
       throw err;
     }
@@ -28,24 +54,26 @@ router.post('/register', async (req, res, next) => {
 
     // 1. Hash password and store in SQLite
     const passwordHash = await hashPassword(password);
-    createUser(studentID, name, passwordHash, 'StudentMSP', 'student');
+    createUser(studentID, name, passwordHash, orgMSP, role);
 
     // 2. Register + enroll with Fabric CA → cert stored in wallet
-    await registerAndEnrollUser(studentID, 'StudentMSP');
+    await registerAndEnrollUser(studentID, orgMSP);
 
-    // 3. Mint 1000 tokens as registration bonus
-    await submitTransaction(studentID, config.fabric.chaincode.token, 'Mint', studentID, '1000');
+    // 3. Mint 1000 tokens as registration bonus (students only)
+    if (role === 'student') {
+      await submitTransaction(studentID, config.fabric.chaincode.token, 'Mint', studentID, '1000');
+    }
 
     // 4. Issue JWT
     const token = jwt.sign(
-      { userId: studentID, orgMSP: 'StudentMSP', role: 'student' },
+      { userId: studentID, orgMSP, role },
       config.jwt.secret,
       { expiresIn: config.jwt.expiresIn }
     );
 
     res.status(201).json({
       error: false,
-      data: { token, userId: studentID, name, balance: 1000 },
+      data: { token, userId: studentID, name, role, balance: role === 'student' ? 1000 : 0 },
     });
   } catch (err) {
     next(err);

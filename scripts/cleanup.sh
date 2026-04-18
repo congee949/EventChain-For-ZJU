@@ -18,7 +18,7 @@ cd "$PROJECT_DIR/fabric/network"
 
 echo "[3/3] 清理本地数据..."
 rm -rf "$PROJECT_DIR/server/wallet"
-rm -f "$PROJECT_DIR/server/users.db"
+rm -f "$PROJECT_DIR/server/data/users.db"
 
 echo ""
 echo "清理完成。"

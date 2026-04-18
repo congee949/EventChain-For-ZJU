@@ -31,8 +31,9 @@ const eventId = computed(() => route.params.id);
 const event = computed(() => eventStore.currentEvent);
 const odds = computed(() => predStore.odds);
 
-// Bet form
-const selectedOption = ref('A');
+// Bet form — selectedOption holds the actual option name (e.g. "A队赢"),
+// not just "A"/"B", so it can be passed straight to the chaincode.
+const selectedOption = ref('');
 const betAmount = ref(50);
 const submitting = ref(false);
 
@@ -40,6 +41,11 @@ onMounted(async () => {
   await eventStore.fetchEvent(eventId.value);
   await predStore.fetchOdds(eventId.value);
   await predStore.fetchPool(eventId.value);
+  // Always reset to optionA when an event loads — don't keep stale selection
+  // from a previous event. Mirrors the watch(eventId) handler below.
+  if (event.value?.predictionOptions?.[0]) {
+    selectedOption.value = event.value.predictionOptions[0];
+  }
 });
 
 watch(eventId, async (newId) => {
@@ -47,6 +53,9 @@ watch(eventId, async (newId) => {
     await eventStore.fetchEvent(newId);
     await predStore.fetchOdds(newId);
     await predStore.fetchPool(newId);
+    if (event.value?.predictionOptions?.[0]) {
+      selectedOption.value = event.value.predictionOptions[0];
+    }
   }
 });
 
@@ -56,16 +65,18 @@ const payoutPreview = computed(() => {
   const pool = predStore.pool;
   const d = betAmount.value;
 
-  if (selectedOption.value === 'A') {
+  // Compare against the actual optionA name (selectedOption is now the option name itself)
+  const optionAName = event.value?.predictionOptions?.[0];
+  if (selectedOption.value === optionAName) {
     const newPoolB = pool.poolB + d;
-    const newPoolA = pool.k / newPoolB;
-    const shares = pool.poolA - newPoolA;
-    return shares.toFixed(2);
+    const newPoolA = Math.floor(pool.k / newPoolB);
+    const shares = Math.floor(pool.poolA - newPoolA);
+    return shares;
   } else {
     const newPoolA = pool.poolA + d;
-    const newPoolB = pool.k / newPoolA;
-    const shares = pool.poolB - newPoolB;
-    return shares.toFixed(2);
+    const newPoolB = Math.floor(pool.k / newPoolA);
+    const shares = Math.floor(pool.poolB - newPoolB);
+    return shares;
   }
 });
 
@@ -220,10 +231,12 @@ const statusLabel = {
       <GlassCard class="chart-card" padding="24px">
         <h2 class="card-title">概率走势</h2>
         <VChart
+          v-if="event.oddsHistory && event.oddsHistory.length > 0"
           :option="chartOption"
           style="height: 320px; width: 100%"
           autoresize
         />
+        <p v-else class="empty-chart-text">暂无走势数据，首次下注后开始记录</p>
       </GlassCard>
 
       <!-- Bet panel -->
@@ -232,10 +245,10 @@ const statusLabel = {
 
         <div class="bet-options">
           <ElRadioGroup v-model="selectedOption" size="large">
-            <ElRadioButton value="A">
+            <ElRadioButton :value="event.predictionOptions?.[0] || 'A'">
               {{ event.predictionOptions?.[0] || 'A' }}
             </ElRadioButton>
-            <ElRadioButton value="B">
+            <ElRadioButton :value="event.predictionOptions?.[1] || 'B'">
               {{ event.predictionOptions?.[1] || 'B' }}
             </ElRadioButton>
           </ElRadioGroup>
@@ -423,6 +436,13 @@ const statusLabel = {
   margin-top: 12px;
   font-size: 13px;
   color: var(--color-text-tertiary);
+}
+
+.empty-chart-text {
+  text-align: center;
+  padding: 80px 0;
+  color: var(--color-text-tertiary);
+  font-size: 14px;
 }
 
 .loading-state {

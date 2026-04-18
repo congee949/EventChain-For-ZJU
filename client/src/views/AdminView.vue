@@ -27,6 +27,7 @@ onMounted(async () => {
 
 // --- Create Event Form ---
 const createForm = ref({
+  eventID: '',
   title: '',
   type: 'basketball',
   teamA: '',
@@ -47,7 +48,7 @@ const eventTypes = [
 
 async function handleCreate() {
   const f = createForm.value;
-  if (!f.title || !f.teamA || !f.teamB || !f.optionA || !f.optionB) {
+  if (!f.eventID || !f.title || !f.teamA || !f.teamB || !f.optionA || !f.optionB) {
     ElMessage.warning('请填写所有必填字段');
     return;
   }
@@ -55,6 +56,7 @@ async function handleCreate() {
   creating.value = true;
   try {
     await eventStore.createEvent({
+      eventID: f.eventID,
       title: f.title,
       type: f.type,
       teams: [f.teamA, f.teamB],
@@ -64,7 +66,7 @@ async function handleCreate() {
     ElMessage.success('赛事创建成功');
     // Reset form
     createForm.value = {
-      title: '', type: 'basketball', teamA: '', teamB: '',
+      eventID: '', title: '', type: 'basketball', teamA: '', teamB: '',
       ticketTotal: 100, optionA: '', optionB: '',
     };
   } catch {
@@ -122,8 +124,12 @@ async function settleEvent(event) {
 
 async function runLottery(event) {
   try {
-    await ElMessageBox.confirm(`确认对「${event.title}」执行抽签？`, '确认');
-    await ticketStore.runLottery(event.id);
+    const { value: ticketCountStr } = await ElMessageBox.prompt(
+      `请输入抽签人数（总票数：${event.ticketTotal}）`,
+      '执行抽签',
+      { inputValue: String(event.ticketTotal), inputPattern: /^[1-9]\d*$/, inputErrorMessage: '请输入正整数' }
+    );
+    await ticketStore.runLottery(event.id, Number(ticketCountStr));
     ElMessage.success('抽签完成');
   } catch {
     // Cancelled or error
@@ -161,6 +167,10 @@ const activeEvents = computed(() =>
       <GlassCard class="create-card" padding="28px">
         <h2 class="card-title">创建赛事</h2>
         <ElForm label-position="top" :model="createForm">
+          <ElFormItem label="赛事 ID">
+            <ElInput v-model="createForm.eventID" placeholder="例：evt005（字母数字_-，1-64位）" />
+          </ElFormItem>
+
           <ElFormItem label="赛事名称">
             <ElInput v-model="createForm.title" placeholder="例：院际篮球决赛" />
           </ElFormItem>
@@ -195,7 +205,7 @@ const activeEvents = computed(() =>
           </div>
 
           <ElFormItem label="票务总量">
-            <ElInputNumber v-model="createForm.ticketTotal" :min="0" :max="10000" style="width: 100%" />
+            <ElInputNumber v-model="createForm.ticketTotal" :min="1" :max="10000" style="width: 100%" />
           </ElFormItem>
 
           <ElButton

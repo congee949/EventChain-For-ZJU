@@ -120,8 +120,9 @@ const achievements = computed(() => {
   const p = profile.value;
   if (!p) return list;
 
-  if (p.totalBets >= 1) list.push({ label: '初出茅庐', desc: '完成第一次预测', icon: '\u{1F3AF}' });
-  if (p.totalBets >= 50) list.push({ label: '预测达人', desc: '完成 50 次预测', icon: '\u{1F525}' });
+  if ((p.placedBets ?? 0) >= 1) list.push({ label: '初出茅庐', desc: '完成第一次下注', icon: '\u{1F3AF}' });
+  if ((p.placedBets ?? 0) >= 50) list.push({ label: '预测达人', desc: '完成 50 次下注', icon: '\u{1F525}' });
+  // 神算子 uses settled-bet count for accuracy denominator (totalBets), not raw placed count
   if (p.accuracyRate >= 0.8 && p.totalBets >= 10) list.push({ label: '神算子', desc: '准确率超过 80%', icon: '\u{1F52E}' });
   if (p.balance >= 5000) list.push({ label: '富甲一方', desc: '余额超过 5000', icon: '\u{1F4B0}' });
 
@@ -150,12 +151,12 @@ const achievements = computed(() => {
             <span class="stat-label">预测准确率</span>
           </div>
           <div class="stat-item">
-            <span class="stat-value">{{ profile.totalBets }}</span>
-            <span class="stat-label">总预测次数</span>
+            <span class="stat-value">{{ profile.placedBets ?? 0 }}</span>
+            <span class="stat-label">总下注次数</span>
           </div>
           <div class="stat-item">
-            <span class="stat-value">{{ profile.correctBets }}</span>
-            <span class="stat-label">正确次数</span>
+            <span class="stat-value">{{ profile.correctBets }} / {{ profile.totalBets }}</span>
+            <span class="stat-label">正确 / 已结算</span>
           </div>
         </div>
       </GlassCard>
