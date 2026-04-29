@@ -2,23 +2,11 @@
 
 ZJU 区块链课程大作业。校园版 Polymarket + 公平抢票系统，基于 Hyperledger Fabric 2.5。
 
-## 功能
+## 架构
 
-- **预测市场**：AMM 做市，虚拟代币「浙币」预测赛事结果
-- **公平购票**：预测准确度加权抽签，奖励真正关注赛事的人
-- **链上透明**：所有交易记录链上可查，Fabric CA 学号实名
+![EventChain 架构](eventchain-architecture.png)
 
-## 技术栈
-
-| 层 | 技术 |
-|----|------|
-| 前端 | Vue 3 + Element Plus + ECharts (Liquid Glass UI 风格) |
-| 后端 | Node.js + Express + Fabric Gateway SDK |
-| 区块链 | Hyperledger Fabric 2.5 (3 Orgs, 4 Chaincodes) |
-| 链码 | Go (token / event / prediction / ticket) |
-| 数据库 | CouchDB (Fabric state DB, 带 rich query 索引) + SQLite (user auth) |
-
-### 三个组织 + 四个链码
+**三组织 + 四链码拓扑：**
 
 ```
 PlatformMSP   (admin)        OrganizerMSP   (赛事主办)        StudentMSP   (学生)
@@ -35,14 +23,36 @@ peer0.platform.eventchain.com  peer0.organizer.eventchain.com  peer0.student.eve
    (浙币代币)  (赛事元数据)  (AMM 池 + 下注)  (申请 + 抽奖)
 ```
 
-## 前置要求
+## 功能
+
+| 功能 | 说明 |
+|------|------|
+| 预测市场 | AMM 做市，虚拟代币「浙币」预测赛事结果 |
+| 公平购票 | 预测准确度加权抽签，奖励真正关注赛事的人 |
+| 链上透明 | 所有交易记录链上可查，Fabric CA 学号实名 |
+| 状态机 | Event 生命周期 forward-only：CREATED → PREDICTION_OPEN → TICKET_OPEN → ONGOING → SETTLED |
+| 演示数据 | 10 个用户、4 个赛事、11 笔下注、1 场已结算 |
+
+## 技术栈
+
+| 层 | 技术 |
+|----|------|
+| 前端 | Vue 3 + Element Plus + ECharts (Liquid Glass UI 风格) |
+| 后端 | Node.js + Express + Fabric Gateway SDK |
+| 区块链 | Hyperledger Fabric 2.5 (3 Orgs, 4 Chaincodes) |
+| 链码 | Go (token / event / prediction / ticket) |
+| 数据库 | CouchDB (Fabric state DB, 带 rich query 索引) + SQLite (user auth) |
+
+## 快速启动
+
+### 前置要求
 
 - Docker & Docker Compose（建议 OrbStack）
 - Go 1.21+
 - Node.js 18+
 - Fabric 2.5 binaries (`peer`, `orderer`, `configtxgen`, `fabric-ca-client`)
 
-## 快速启动
+### 一键启动
 
 ```bash
 # 1. 一次性安装 Fabric binaries + Docker images（项目根目录运行）
@@ -62,7 +72,7 @@ open http://localhost:5173
 
 > **二进制文件位置说明**：`install-fabric.sh` 把 binaries 装到了项目根的 `bin/`，但 `network.sh` 期待 `fabric/network/bin/`。本仓库已在 `fabric/network/bin → ../../bin` 建好软链解决。
 
-## 演示账号
+### 演示账号
 
 | 角色 | 学号/账号 | 密码 | 余额 |
 |------|---------|------|------|
@@ -71,7 +81,7 @@ open http://localhost:5173
 | 主办方 | `organizer01` | `org123` | 0 |
 | 管理员 | `admin01` | `admin123` | 0 |
 
-## 主要服务
+## 服务端口
 
 | 服务 | 端口 | 说明 |
 |------|------|------|
@@ -87,6 +97,92 @@ open http://localhost:5173
 | CA student | 9054 | HTTPS |
 | CA orderer | 10054 | HTTPS |
 | CouchDB 0/1/2 | 5984/5985/5986 | Peer state DB |
+
+## API 端点
+
+### 认证
+
+| 方法 | 路径 | 权限 | 说明 |
+|------|------|------|------|
+| POST | `/api/v1/auth/register` | 公开 | `{studentID, password, name, role?}` |
+| POST | `/api/v1/auth/login` | 公开 | `{studentID, password}` → `{token, userId, name, role}` |
+
+后续请求：`Authorization: Bearer <token>`
+
+### 事件
+
+| 方法 | 路径 | 权限 | 说明 |
+|------|------|------|------|
+| GET | `/api/v1/events` | 公开 | 列出所有事件 |
+| GET | `/api/v1/events/:id` | 公开 | 单个事件 + odds |
+| POST | `/api/v1/events` | organizer | `{eventID, title, type, teams[], ticketTotal, predictionOptions[]}` |
+| PUT | `/api/v1/events/:id/status` | organizer | `{status}` |
+| PUT | `/api/v1/events/:id/result` | organizer | `{outcome}` — 触发自动结算 |
+
+### 预测
+
+| 方法 | 路径 | 权限 | 说明 |
+|------|------|------|------|
+| POST | `/api/v1/predictions/bet` | 已登录 | `{eventID, option, amount}` |
+| GET | `/api/v1/predictions/odds/:eventID` | 公开 | 当前赔率 |
+| GET | `/api/v1/predictions/pool/:eventID` | 公开 | 池子状态 |
+| GET | `/api/v1/predictions/mine` | 已登录 | 我的下注 |
+| GET | `/api/v1/predictions/score` | 已登录 | 我的得分 |
+
+### 票务
+
+| 方法 | 路径 | 权限 | 说明 |
+|------|------|------|------|
+| POST | `/api/v1/tickets/apply` | 已登录 | `{eventID}` |
+| POST | `/api/v1/tickets/lottery/:eventID` | organizer | `{ticketCount}` |
+| POST | `/api/v1/tickets/claim/:eventID` | 已登录 | 领票 |
+| GET | `/api/v1/tickets/mine` | 已登录 | 我的票 |
+| GET | `/api/v1/tickets/verify/:ticketID` | 公开 | `?hash=xxx` 验票 |
+| POST | `/api/v1/tickets/refund/:ticketID` | 已登录 | 退票 |
+
+### 用户
+
+| 方法 | 路径 | 权限 | 说明 |
+|------|------|------|------|
+| GET | `/api/v1/users/profile` | 已登录 | 余额、placedBets、totalBets、accuracyRate |
+| GET | `/api/v1/users/leaderboard` | 公开 | 按 accuracyRate 排序前 20 |
+
+## AMM 模型（预测池）
+
+- 初始 PoolA = PoolB = 10000 浙币（虚拟）
+- k = PoolA × PoolB = 1e8（不变）
+- 下注 X 浙币 on A → PoolB += X, newPoolA = k / newPoolB, shares = oldPoolA - newPoolA
+- 概率 probA = PoolB / (PoolA + PoolB)
+- 结算时：赢家按 shares 占比瓜分 totalPool
+
+## 常用命令
+
+```bash
+# 完整启动（fabric + chaincodes + server + client）
+./scripts/start-all.sh
+
+# 灌入演示数据
+./scripts/seed-data.sh
+
+# 清理一切（容器 + 卷 + 本地状态）
+./scripts/cleanup.sh
+
+# 只重启 fabric 网络
+cd fabric/network
+./network.sh down
+./network.sh up -ca -s couchdb
+./network.sh createChannel
+./network.sh deployCC -ccn token      -ccp ../chaincode/token      -ccl go
+./network.sh deployCC -ccn event      -ccp ../chaincode/event      -ccl go
+./network.sh deployCC -ccn prediction -ccp ../chaincode/prediction -ccl go
+./network.sh deployCC -ccn ticket     -ccp ../chaincode/ticket     -ccl go
+
+# 只重启后端（保留 fabric 状态）
+cd server && npm start
+
+# 只重启前端
+cd client && npm run dev
+```
 
 ## 项目结构
 
@@ -128,52 +224,6 @@ EventChain/
 └── scripts/              # start-all.sh, seed-data.sh, cleanup.sh
 ```
 
-## 常用命令
-
-```bash
-# 完整启动（fabric + chaincodes + server + client）
-./scripts/start-all.sh
-
-# 灌入演示数据
-./scripts/seed-data.sh
-
-# 清理一切（容器 + 卷 + 本地状态）
-./scripts/cleanup.sh
-
-# 只重启 fabric 网络
-cd fabric/network
-./network.sh down
-./network.sh up -ca -s couchdb
-./network.sh createChannel
-./network.sh deployCC -ccn token      -ccp ../chaincode/token      -ccl go
-./network.sh deployCC -ccn event      -ccp ../chaincode/event      -ccl go
-./network.sh deployCC -ccn prediction -ccp ../chaincode/prediction -ccl go
-./network.sh deployCC -ccn ticket     -ccp ../chaincode/ticket     -ccl go
-
-# 只重启后端（保留 fabric 状态）
-cd server && npm start
-
-# 只重启前端
-cd client && npm run dev
-```
-
-## 状态机
-
-### Event 生命周期
-```
-CREATED → PREDICTION_OPEN → TICKET_OPEN → ONGOING → SETTLED
-                  ↑                                       ↓
-            自动初始化 prediction pool          自动 settle 派彩
-```
-状态机是 forward-only，没有回退。`PUT /events/:id/status` 切到 `PREDICTION_OPEN` 时后端会自动调 `prediction.InitializePool` 创建 pool。
-
-### Prediction Pool（AMM）
-- 初始 PoolA = PoolB = 10000 浙币（虚拟）
-- k = PoolA × PoolB = 1e8（不变）
-- 下注 X 浙币 on A → PoolB += X, newPoolA = k / newPoolB, shares = oldPoolA - newPoolA
-- 概率 probA = PoolB / (PoolA + PoolB)
-- 结算时：赢家按 shares 占比瓜分 totalPool
-
 ## 已知限制（Demo Only）
 
 > ⚠️ 这是一个**校园课程项目 Demo**，不适合生产部署。下列限制是设计折中。
@@ -190,6 +240,7 @@ CREATED → PREDICTION_OPEN → TICKET_OPEN → ONGOING → SETTLED
 ## 调试技巧
 
 ### 容器全挂了，或者 CA 启动失败
+
 ```bash
 ./scripts/cleanup.sh   # 全清
 # 注意：cleanup 不会清 CA identity registry。如果遇到 "Identity already registered"，
@@ -200,33 +251,40 @@ done
 ```
 
 ### 看链码错误（最有用的命令）
+
 ```bash
 docker logs peer0.platform.eventchain.com --since 5m 2>&1 | grep -iE "ERRO|chaincode response 500|WARN.*gateway"
 ```
 
 ### 看后端日志
+
 ```bash
 tail -f /tmp/eventchain-server.log    # 如果用 start-all.sh 启的
 ```
 
 ### 查 CouchDB 索引
+
 ```bash
 curl -s http://admin:adminpw@localhost:5984/eventchain_prediction/_index | jq
 ```
 
 ### 查链码部署版本
+
 ```bash
 docker exec peer0.platform.eventchain.com peer lifecycle chaincode querycommitted -C eventchain
 ```
 
 ### 排查 "unable to verify the first certificate"
+
 通常是 stale 后端 server 还在跑（grpc client cache 持有旧 TLS cert）。
+
 ```bash
 pkill -9 -f "node src/app.js"
 lsof -iTCP:3000 -sTCP:LISTEN  # 必须返回空
 ```
 
 ### 干净重启 + 灌数据（最稳的 incantation）
+
 ```bash
 ./scripts/cleanup.sh
 for org in platform organizer student ordererOrg; do
@@ -246,39 +304,13 @@ sleep 200
 ./scripts/seed-data.sh
 ```
 
-## API 速查
+## 相关链接
 
-### 认证
-- `POST /api/v1/auth/register` `{studentID, password, name, role?}`
-- `POST /api/v1/auth/login` `{studentID, password}`
-- 响应：`{error, data: {token, userId, name, role, ...}}`
-- 后续请求：`Authorization: Bearer <token>`
-
-### 事件
-- `GET /api/v1/events`（公开） — 列出所有
-- `GET /api/v1/events/:id`（公开） — 单个事件 + odds
-- `POST /api/v1/events`（organizer）`{eventID, title, type, teams[], ticketTotal, predictionOptions[]}`
-- `PUT /api/v1/events/:id/status`（organizer）`{status}`
-- `PUT /api/v1/events/:id/result`（organizer）`{outcome}` — 触发自动结算
-
-### 预测
-- `POST /api/v1/predictions/bet`（已登录）`{eventID, option, amount}`
-- `GET /api/v1/predictions/odds/:eventID`（公开）
-- `GET /api/v1/predictions/pool/:eventID`（公开）
-- `GET /api/v1/predictions/mine`（已登录）
-- `GET /api/v1/predictions/score`（已登录）
-
-### 票务
-- `POST /api/v1/tickets/apply`（已登录）`{eventID}`
-- `POST /api/v1/tickets/lottery/:eventID`（organizer）`{ticketCount}`
-- `POST /api/v1/tickets/claim/:eventID`（已登录）
-- `GET /api/v1/tickets/mine`（已登录）
-- `GET /api/v1/tickets/verify/:ticketID?hash=xxx`（公开）
-- `POST /api/v1/tickets/refund/:ticketID`（已登录）
-
-### 用户
-- `GET /api/v1/users/profile`（已登录） — 余额、placedBets、totalBets、accuracyRate
-- `GET /api/v1/users/leaderboard`（公开） — 按 accuracyRate 排序前 20
+- [Hyperledger Fabric 官方文档](https://hyperledger-fabric.readthedocs.io/)
+- [Fabric Gateway SDK for Node.js](https://github.com/hyperledger/fabric-gateway)
+- [Hyperledger Fabric Samples](https://github.com/hyperledger/fabric-samples)
+- [Vue 3 文档](https://vuejs.org/)
+- [Element Plus 文档](https://element-plus.org/)
 
 ---
 
