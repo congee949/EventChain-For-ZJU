@@ -140,6 +140,10 @@ open http://localhost:5173
 | GET | `/api/v1/tickets/verify/:ticketID` | 公开 | `?hash=xxx` 验票 |
 | POST | `/api/v1/tickets/refund/:ticketID` | 已登录 | 退票 |
 
+#### 门票抽签流程
+
+![门票抽签流程](eventchain-ticket-lottery.png)
+
 ### 用户
 
 | 方法 | 路径 | 权限 | 说明 |
