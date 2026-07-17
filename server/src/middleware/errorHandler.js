@@ -14,6 +14,10 @@ const ERROR_MAP = {
   VALIDATION_ERROR: { status: 400, message: '请求参数不合法' },
 };
 
+const CHAINCODE_ERROR_PATTERNS = [
+  { pattern: 'application already exists', code: 'ALREADY_APPLIED' },
+];
+
 export function errorHandler(err, _req, res, _next) {
   console.error('[ErrorHandler]', err);
 
@@ -33,6 +37,17 @@ export function errorHandler(err, _req, res, _next) {
     // Try to extract a known code from the chaincode error string
     for (const [code, meta] of Object.entries(ERROR_MAP)) {
       if (detail.includes(code)) {
+        return res.status(meta.status).json({
+          error: true,
+          code,
+          message: meta.message,
+        });
+      }
+    }
+
+    for (const { pattern, code } of CHAINCODE_ERROR_PATTERNS) {
+      if (detail.includes(pattern)) {
+        const meta = ERROR_MAP[code];
         return res.status(meta.status).json({
           error: true,
           code,

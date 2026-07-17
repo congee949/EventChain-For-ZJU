@@ -32,7 +32,16 @@ const pendingApplications = computed(() =>
   ticketStore.myApplications.filter((application) => application.status === 'PENDING')
 );
 
+const appliedEventIds = computed(() =>
+  new Set(ticketStore.myApplications.map((application) => application.eventID))
+);
+
+function hasApplied(eventID) {
+  return appliedEventIds.value.has(eventID);
+}
+
 async function handleApply(eventID) {
+  if (hasApplied(eventID)) return;
   try {
     await ticketStore.applyTicket(eventID);
     ElMessage.success('申请已提交');
@@ -82,8 +91,12 @@ async function handleRefund(ticketID) {
           <div class="te-countdown">
             <span class="te-status-label">抽签进行中</span>
           </div>
-          <button class="apply-btn" @click="handleApply(event.id)">
-            申请购票
+          <button
+            class="apply-btn"
+            :disabled="ticketStore.loading || hasApplied(event.id)"
+            @click="handleApply(event.id)"
+          >
+            {{ hasApplied(event.id) ? '已申请' : ticketStore.loading ? '提交中...' : '申请购票' }}
           </button>
         </GlassCard>
       </div>
@@ -236,6 +249,11 @@ async function handleRefund(ticketID) {
 
 .apply-btn:hover {
   background: var(--color-primary-dark);
+}
+
+.apply-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .applications-list {
