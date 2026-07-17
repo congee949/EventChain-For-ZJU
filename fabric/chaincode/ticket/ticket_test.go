@@ -64,8 +64,8 @@ func (m *MockPredictionCC) Invoke(stub shim.ChaincodeStubInterface) peer.Respons
 
 func setupMockPredictionCC(stub *shimtest.MockStub, scores map[string]MockScore) {
 	mockCC := &MockPredictionCC{Scores: scores}
-	predStub := shimtest.NewMockStub("prediction-cc", mockCC)
-	stub.MockPeerChaincode("prediction-cc", predStub, "eventchain")
+	predStub := shimtest.NewMockStub("prediction", mockCC)
+	stub.MockPeerChaincode("prediction", predStub, "eventchain")
 }
 
 func TestApplyTicket(t *testing.T) {
@@ -129,6 +129,39 @@ func TestApplyTicketMultipleUsers(t *testing.T) {
 		key := fmt.Sprintf("application:evt001:%s", userID)
 		assert.NotNil(t, stub.State[key])
 	}
+}
+
+func TestGetUserApplications(t *testing.T) {
+	stub, _ := setupTicketChaincode(t)
+
+	applications := []struct {
+		eventID string
+		userID  string
+	}{
+		{eventID: "evt001", userID: "user1"},
+		{eventID: "evt002", userID: "user1"},
+		{eventID: "evt001", userID: "user2"},
+	}
+	for i, application := range applications {
+		resp := stub.MockInvoke(fmt.Sprintf("tx-apply-%d", i), [][]byte{
+			[]byte("TicketContract:ApplyTicket"),
+			[]byte(application.eventID),
+			[]byte(application.userID),
+		})
+		require.Equal(t, int32(shim.OK), resp.Status, resp.Message)
+	}
+
+	resp := stub.MockInvoke("tx-query", [][]byte{
+		[]byte("TicketContract:GetUserApplications"),
+		[]byte("user1"),
+	})
+	require.Equal(t, int32(shim.OK), resp.Status, resp.Message)
+
+	var result []*Application
+	require.NoError(t, json.Unmarshal(resp.Payload, &result))
+	require.Len(t, result, 2)
+	assert.Equal(t, "user1", result[0].UserID)
+	assert.Equal(t, "user1", result[1].UserID)
 }
 
 func TestRunLottery(t *testing.T) {

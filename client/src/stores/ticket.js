@@ -4,6 +4,7 @@ import api from '../api/index.js';
 
 export const useTicketStore = defineStore('ticket', () => {
   const myTickets = ref([]);
+  const myApplications = ref([]);
   const loading = ref(false);
 
   async function applyTicket(eventID) {
@@ -22,12 +23,17 @@ export const useTicketStore = defineStore('ticket', () => {
   }
 
   async function fetchMyTickets() {
-    myTickets.value = await api.get('/tickets/mine');
+    const [tickets, applications] = await Promise.all([
+      api.get('/tickets/mine'),
+      api.get('/tickets/applications/mine'),
+    ]);
+    myTickets.value = tickets;
+    myApplications.value = applications;
     return myTickets.value;
   }
 
-  async function claimTicket(ticketID) {
-    const result = await api.post(`/tickets/claim/${ticketID}`);
+  async function claimTicket(eventID) {
+    const result = await api.post(`/tickets/claim/${eventID}`);
     // Refresh ticket list to show new claim hash
     await fetchMyTickets();
     return result;
@@ -46,6 +52,7 @@ export const useTicketStore = defineStore('ticket', () => {
 
   return {
     myTickets,
+    myApplications,
     loading,
     applyTicket,
     runLottery,

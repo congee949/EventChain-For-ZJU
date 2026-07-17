@@ -504,6 +504,39 @@ func (tc *TicketContract) GetUserTickets(ctx contractapi.TransactionContextInter
 	return tickets, nil
 }
 
+// GetUserApplications returns all ticket applications submitted by a user.
+// Application keys are event-first (application:<eventID>:<userID>), so this
+// query scans the application namespace and filters by userID.
+func (tc *TicketContract) GetUserApplications(ctx contractapi.TransactionContextInterface, userID string) ([]*Application, error) {
+	if userID == "" {
+		return []*Application{}, nil
+	}
+
+	iterator, err := ctx.GetStub().GetStateByRange("application:", "application:~")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get applications: %s", err.Error())
+	}
+	defer iterator.Close()
+
+	applications := []*Application{}
+	for iterator.HasNext() {
+		queryResponse, err := iterator.Next()
+		if err != nil {
+			return nil, fmt.Errorf("failed to iterate applications: %s", err.Error())
+		}
+
+		var application Application
+		if err := json.Unmarshal(queryResponse.Value, &application); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal application: %s", err.Error())
+		}
+		if application.UserID == userID {
+			applications = append(applications, &application)
+		}
+	}
+
+	return applications, nil
+}
+
 func main() {
 	chaincode, err := contractapi.NewChaincode(&TicketContract{})
 	if err != nil {

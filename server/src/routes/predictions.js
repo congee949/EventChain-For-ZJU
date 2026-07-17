@@ -5,16 +5,25 @@ import config from '../config/index.js';
 
 const router = Router();
 const CC = config.fabric.chaincode.prediction;
+const CC_EVENT = config.fabric.chaincode.event;
 
 // POST /api/v1/predictions/bet
 // Body: { eventID, option, amount }
 router.post('/bet', authenticate, async (req, res, next) => {
   try {
     const { eventID, option, amount } = req.body;
+    const amountNum = Number(amount);
 
-    if (!eventID || !option || !amount || amount <= 0) {
+    if (!eventID || !option || !Number.isSafeInteger(amountNum) || amountNum <= 0) {
       const err = new Error('eventID, option, amount(>0) 均为必填');
       err.code = 'VALIDATION_ERROR';
+      throw err;
+    }
+
+    const event = await evaluateTransaction(req.user.userId, CC_EVENT, 'QueryEvent', eventID);
+    if (event?.status !== 'PREDICTION_OPEN') {
+      const err = new Error('赛事当前未开放预测');
+      err.code = 'BET_CLOSED';
       throw err;
     }
 
@@ -26,7 +35,7 @@ router.post('/bet', authenticate, async (req, res, next) => {
       eventID,
       req.user.userId,
       option,
-      String(amount)
+      String(amountNum)
     );
 
     // result: { shares, newOddsA, newOddsB }

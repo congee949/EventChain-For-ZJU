@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth.js';
 import { useUserStore } from '../stores/user.js';
@@ -13,6 +13,18 @@ const { elementRef } = useGlassHighlight();
 const isLoggedIn = computed(() => auth.isLoggedIn);
 const displayName = computed(() => auth.user?.name || auth.user?.userId || '');
 const balance = computed(() => userStore.balance);
+
+watch(
+  isLoggedIn,
+  (loggedIn) => {
+    if (loggedIn) {
+      userStore.fetchProfile().catch(() => {
+        // The API interceptor already surfaces the error and clears expired sessions.
+      });
+    }
+  },
+  { immediate: true }
+);
 
 function handleLogout() {
   auth.logout();
