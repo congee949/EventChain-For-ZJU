@@ -5,6 +5,7 @@ import config from '../config/index.js';
 
 const router = Router();
 const CC = config.fabric.chaincode.ticket;
+const CC_EVENT = config.fabric.chaincode.event;
 
 // POST /api/v1/tickets/apply
 // Body: { eventID }
@@ -14,6 +15,13 @@ router.post('/apply', authenticate, async (req, res, next) => {
     if (!eventID) {
       const err = new Error('eventID 为必填');
       err.code = 'VALIDATION_ERROR';
+      throw err;
+    }
+
+    const event = await evaluateTransaction(req.user.userId, CC_EVENT, 'QueryEvent', eventID);
+    if (event?.status !== 'TICKET_OPEN') {
+      const err = new Error('赛事当前未开放购票申请');
+      err.code = 'INVALID_STATUS';
       throw err;
     }
 
@@ -44,6 +52,23 @@ router.post('/lottery/:eventID', authenticate, requireRole('organizer', 'admin')
       throw err;
     }
 
+    const event = await evaluateTransaction(
+      req.user.userId,
+      CC_EVENT,
+      'QueryEvent',
+      req.params.eventID
+    );
+    if (event?.status !== 'TICKET_OPEN') {
+      const err = new Error('赛事当前不允许执行抽签');
+      err.code = 'INVALID_STATUS';
+      throw err;
+    }
+    if (ticketCountNum > event.ticketTotal) {
+      const err = new Error(`抽签人数不能超过票务总量 ${event.ticketTotal}`);
+      err.code = 'VALIDATION_ERROR';
+      throw err;
+    }
+
     // Chaincode RunLottery signature: (eventID, ticketCountStr)
     const result = await submitTransaction(
       req.user.userId,
@@ -69,6 +94,21 @@ router.get('/mine', authenticate, async (req, res, next) => {
       req.user.userId
     );
     res.json({ error: false, data: tickets || [] });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/v1/tickets/applications/mine
+router.get('/applications/mine', authenticate, async (req, res, next) => {
+  try {
+    const applications = await evaluateTransaction(
+      req.user.userId,
+      CC,
+      'GetUserApplications',
+      req.user.userId
+    );
+    res.json({ error: false, data: applications || [] });
   } catch (err) {
     next(err);
   }

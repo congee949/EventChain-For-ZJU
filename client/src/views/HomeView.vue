@@ -15,12 +15,11 @@ const auth = useAuthStore();
 
 onMounted(async () => {
   await eventStore.fetchEvents();
+  const requests = [userStore.fetchLeaderboard()];
   if (auth.isLoggedIn) {
-    await Promise.all([
-      userStore.fetchProfile(),
-      userStore.fetchLeaderboard(),
-    ]);
+    requests.push(userStore.fetchProfile());
   }
+  await Promise.all(requests);
 });
 
 const hotEvents = computed(() =>

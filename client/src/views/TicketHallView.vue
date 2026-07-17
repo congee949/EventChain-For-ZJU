@@ -22,11 +22,14 @@ const ticketEvents = computed(() =>
 );
 
 const wonTickets = computed(() =>
-  ticketStore.myTickets.filter((t) => t.status === 'WON' || t.status === 'CLAIMED')
+  [
+    ...ticketStore.myApplications.filter((application) => application.status === 'WON'),
+    ...ticketStore.myTickets.filter((ticket) => ticket.status === 'CLAIMED'),
+  ]
 );
 
 const pendingApplications = computed(() =>
-  ticketStore.myTickets.filter((t) => t.status === 'PENDING')
+  ticketStore.myApplications.filter((application) => application.status === 'PENDING')
 );
 
 async function handleApply(eventID) {
@@ -39,9 +42,9 @@ async function handleApply(eventID) {
   }
 }
 
-async function handleClaim(ticketID) {
+async function handleClaim(eventID) {
   try {
-    await ticketStore.claimTicket(ticketID);
+    await ticketStore.claimTicket(eventID);
     ElMessage.success('票据已领取');
   } catch {
     // Error handled by interceptor
@@ -111,7 +114,7 @@ async function handleRefund(ticketID) {
       <div class="tickets-grid">
         <GlassCard
           v-for="ticket in wonTickets"
-          :key="ticket.ticketID"
+          :key="ticket.ticketID || `application:${ticket.eventID}`"
           class="ticket-card"
         >
           <h3 class="ticket-event-name">{{ ticket.eventID }}</h3>
@@ -130,11 +133,12 @@ async function handleRefund(ticketID) {
             <button
               v-if="ticket.status === 'WON'"
               class="claim-btn"
-              @click="handleClaim(ticket.ticketID)"
+              @click="handleClaim(ticket.eventID)"
             >
               领取票据
             </button>
             <button
+              v-if="ticket.status === 'CLAIMED'"
               class="refund-btn"
               @click="handleRefund(ticket.ticketID)"
             >

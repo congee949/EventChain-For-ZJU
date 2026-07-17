@@ -7,6 +7,17 @@ const router = Router();
 const CC = config.fabric.chaincode.event;
 const CC_PRED = config.fabric.chaincode.prediction;
 
+async function enrichMarketData(queryUserId, event) {
+  if (event.status === 'CREATED') return event;
+
+  const [odds, pool] = await Promise.all([
+    evaluateTransaction(queryUserId, CC_PRED, 'GetOdds', event.id).catch(() => null),
+    evaluateTransaction(queryUserId, CC_PRED, 'GetPool', event.id).catch(() => null),
+  ]);
+
+  return { ...event, odds, pool };
+}
+
 // Optional auth for GET — attach user identity if token is present
 router.use('/', (req, _res, next) => {
   if (req.method === 'GET' && req.headers.authorization) {
@@ -28,7 +39,11 @@ router.get('/', async (req, res, next) => {
       status || '',
       type || ''
     );
-    res.json({ error: false, data: result || [] });
+    const events = result || [];
+    const enrichedEvents = await Promise.all(
+      events.map((event) => enrichMarketData(queryUserId, event))
+    );
+    res.json({ error: false, data: enrichedEvents });
   } catch (err) {
     next(err);
   }
