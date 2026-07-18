@@ -26,6 +26,31 @@
 - `/services`、`/wallet`、`/me`：服务兑换、分类钱包和隐私化个人中心。
 - `/admin`：按 organizer/verifier/operator/arbitrator/admin 证书角色显示运营动作。
 
+### 界面展示
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src="design_handoff_eventchain_reskin/screenshots/2-market.png" alt="赛事市场" />
+      <br /><strong>赛事市场</strong>
+    </td>
+    <td width="50%" align="center">
+      <img src="design_handoff_eventchain_reskin/screenshots/3-event-detail.png" alt="赛事详情" />
+      <br /><strong>赛事详情与预测仓位</strong>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="design_handoff_eventchain_reskin/screenshots/4-tickets.png" alt="活动票务大厅" />
+      <br /><strong>活动票务大厅</strong>
+    </td>
+    <td width="50%" align="center">
+      <img src="design_handoff_eventchain_reskin/screenshots/6-wallet.png" alt="A/B 钱包" />
+      <br /><strong>A/B 分类钱包</strong>
+    </td>
+  </tr>
+</table>
+
 ### 门票抽签流程
 
 ![门票抽签流程](eventchain-ticket-lottery.png)
