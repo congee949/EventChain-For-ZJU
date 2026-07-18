@@ -1,0 +1,12 @@
+[
+  {
+    "name": "activity_private",
+    "policy": "OR('PlatformMSP.member','StudentMSP.member')",
+    "requiredPeerCount": 1,
+    "maxPeerCount": 2,
+    "blockToLive": 0,
+    "memberOnlyRead": false,
+    "memberOnlyWrite": false,
+    "endorsementPolicy": { "signaturePolicy": "AND('PlatformMSP.member','StudentMSP.member')" }
+  }
+]

@@ -186,6 +186,11 @@ checkCommitReadiness() {
     init_flag="--init-required"
   fi
 
+  local coll_flag=""
+  if [ -n "$CC_COLL_CONFIG" ]; then
+    coll_flag="--collections-config ${CC_COLL_CONFIG}"
+  fi
+
   setGlobals platform
 
   peer lifecycle chaincode checkcommitreadiness \
@@ -195,7 +200,8 @@ checkCommitReadiness() {
     --sequence "$CC_SEQUENCE" \
     --signature-policy "$CC_END_POLICY" \
     --output json \
-    $init_flag
+    $init_flag \
+    $coll_flag
 }
 
 # ============================================================

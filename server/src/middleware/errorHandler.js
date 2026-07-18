@@ -12,6 +12,7 @@ const ERROR_MAP = {
   USER_EXISTS: { status: 409, message: '该学号已注册' },
   INVALID_CREDENTIALS: { status: 401, message: '学号或密码错误' },
   VALIDATION_ERROR: { status: 400, message: '请求参数不合法' },
+  RATE_LIMITED: { status: 429, message: '请求过于频繁，请稍后再试' },
 };
 
 export function errorHandler(err, _req, res, _next) {

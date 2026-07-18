@@ -54,10 +54,10 @@ export async function getGateway(userId) {
 }
 
 // Get a contract handle for a given chaincode.
-export async function getContract(userId, chaincodeName) {
+export async function getContract(userId, chaincodeName, contractName) {
   const { gateway } = await getGateway(userId);
   const network = gateway.getNetwork(config.fabric.channelName);
-  return network.getContract(chaincodeName);
+  return network.getContract(chaincodeName, contractName);
 }
 
 // Submit a transaction (read-write).
@@ -72,6 +72,36 @@ export async function evaluateTransaction(userId, chaincodeName, fn, ...args) {
   const contract = await getContract(userId, chaincodeName);
   const resultBytes = await contract.evaluateTransaction(fn, ...args);
   return resultBytes.length ? JSON.parse(new TextDecoder().decode(resultBytes)) : null;
+}
+
+export async function submitTransactionOptions(userId, chaincodeName, fn, options = {}) {
+  const contract = await getContract(userId, chaincodeName, options.contractName);
+  const resultBytes = await contract.submit(fn, {
+    arguments: options.arguments || [],
+    transientData: options.transientData,
+    endorsingOrganizations: options.endorsingOrganizations,
+  });
+  return decodeResult(resultBytes);
+}
+
+export async function evaluateTransactionOptions(userId, chaincodeName, fn, options = {}) {
+  const contract = await getContract(userId, chaincodeName, options.contractName);
+  const resultBytes = await contract.evaluate(fn, {
+    arguments: options.arguments || [],
+    transientData: options.transientData,
+    endorsingOrganizations: options.endorsingOrganizations,
+  });
+  return decodeResult(resultBytes);
+}
+
+function decodeResult(resultBytes) {
+  if (!resultBytes?.length) return null;
+  const text = new TextDecoder().decode(resultBytes);
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
 }
 
 // Close a user's cached connection when they log out (optional).

@@ -6,7 +6,7 @@
 #   ./network.sh up             — Start CAs, generate crypto, start network
 #   ./network.sh createChannel  — Create channel and join all peers
 #   ./network.sh deployCC       — Deploy a chaincode
-#   ./network.sh deployCCs      — Deploy all 4 EventChain chaincodes
+#   ./network.sh deployCCs      — Deploy V2 finance + activity chaincodes
 #   ./network.sh down           — Tear down everything
 #   ./network.sh restart        — down + up + createChannel
 
@@ -66,7 +66,7 @@ printHelp() {
   echo "                    -ccl <lang>  Language: go (default)"
   echo "                    -ccv <ver>   Version: 1.0 (default)"
   echo "                    -ccs <seq>   Sequence: 1 (default)"
-  echo "  deployCCs       Deploy all 4 EventChain chaincodes"
+  echo "  deployCCs       Deploy V2 finance + activity chaincodes"
   echo "  down            Tear down the entire network"
   echo "  restart         Tear down and restart (down + up + createChannel)"
   echo ""
@@ -125,11 +125,20 @@ startCAs() {
   # Verify CAs are running
   local ca_containers=("ca_platform" "ca_organizer" "ca_student" "ca_orderer")
   for container in "${ca_containers[@]}"; do
-    if ! docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
-      echo "ERROR: ${container} is not running"
-      docker logs "$container" 2>&1 | tail -20
-      exit 1
-    fi
+    local attempts=0
+    until docker ps --format '{{.Names}}' | grep -q "^${container}$"; do
+      attempts=$((attempts + 1))
+      if [ "$attempts" -ge 3 ]; then
+        echo "ERROR: ${container} is not running after restart attempts"
+        docker logs "$container" 2>&1 | tail -20
+        exit 1
+      fi
+      # On Docker Desktop, four bind-mounted CAs can race while generating
+      # their initial keys. A stopped container is safe to restart because its
+      # own directory is already isolated and initialization is idempotent.
+      docker start "$container" >/dev/null 2>&1 || true
+      sleep 2
+    done
   done
 
   echo "All CAs running"
@@ -232,7 +241,8 @@ deployCC() {
 }
 
 # ============================================================
-# Deploy all 4 EventChain chaincodes
+# Deploy V2 chaincodes. Legacy token/event/prediction/ticket are intentionally
+# not deployed after a reset because their write methods bypass V2 controls.
 # ============================================================
 deployCCs() {
   echo ""
@@ -240,28 +250,25 @@ deployCCs() {
   echo " Deploying all EventChain chaincodes"
   echo "============================================"
 
-  local chaincodes=("token" "event" "prediction" "ticket")
-  local sequence=1
-
-  for cc in "${chaincodes[@]}"; do
+  local v2_policy="AND('PlatformMSP.peer','StudentMSP.peer')"
+  for cc in finance activity; do
     echo ""
-    echo ">>> Deploying ${cc}-chaincode..."
+    echo ">>> Deploying ${cc} V2..."
     bash "${SCRIPT_DIR}/scripts/deployCC.sh" \
-      -ccn "${cc}" \
+      -ccn "$cc" \
       -ccp "${CC_SRC_BASE}/${cc}" \
-      -ccl go \
-      -ccv "1.0" \
-      -ccs "$sequence" \
-      -c "$CHANNEL_NAME"
+      -ccl go -ccv "2.0" -ccs 1 -c "$CHANNEL_NAME" \
+      -cce "$v2_policy" \
+      -ccco "${CC_SRC_BASE}/${cc}/collections_config.json"
   done
 
   echo ""
   echo "============================================"
   echo " All chaincodes deployed"
   echo ""
-  echo " Deployed: token, event, prediction, ticket"
+  echo " Deployed: finance, activity"
   echo " Channel:  ${CHANNEL_NAME}"
-  echo " Policy:   OR(PlatformMSP.peer, OrganizerMSP.peer, StudentMSP.peer)"
+  echo " Policy:   AND(PlatformMSP.peer, StudentMSP.peer)"
   echo "============================================"
 }
 

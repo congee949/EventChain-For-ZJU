@@ -1,390 +1,54 @@
 <script setup>
-import { onMounted, computed } from 'vue';
-import { use } from 'echarts/core';
-import { CanvasRenderer } from 'echarts/renderers';
-import { RadarChart } from 'echarts/charts';
-import { TitleComponent, TooltipComponent, LegendComponent } from 'echarts/components';
-import VChart from 'vue-echarts';
-import { useUserStore } from '../stores/user.js';
-import { usePredictionStore } from '../stores/prediction.js';
-import { useTicketStore } from '../stores/ticket.js';
+import { computed, onMounted } from 'vue';
 import GlassCard from '../components/GlassCard.vue';
+import { useAuthStore } from '../stores/auth.js';
+import { formatAmount, useFinanceStore } from '../stores/finance.js';
+import { useActivityV2Store } from '../stores/activityV2.js';
 
-use([CanvasRenderer, RadarChart, TitleComponent, TooltipComponent, LegendComponent]);
-
-const userStore = useUserStore();
-const predStore = usePredictionStore();
-const ticketStore = useTicketStore();
-
-onMounted(async () => {
-  await Promise.all([
-    userStore.fetchProfile(),
-    predStore.fetchMyBets(),
-    predStore.fetchMyScore(),
-    ticketStore.fetchMyTickets(),
-  ]);
-});
-
-const profile = computed(() => userStore.profile);
-
-// Radar chart — accuracy by event type
-const radarOption = computed(() => {
-  // Group bets by event type and compute per-type accuracy
-  const typeMap = {};
-  const types = ['basketball', 'football', 'esports', 'badminton', 'track'];
-  const typeLabels = {
-    basketball: '篮球',
-    football: '足球',
-    esports: '电竞',
-    badminton: '羽毛球',
-    track: '田径',
-  };
-
-  for (const t of types) {
-    typeMap[t] = { total: 0, correct: 0 };
-  }
-
-  for (const bet of predStore.myBets) {
-    const t = bet.eventType || 'basketball';
-    if (typeMap[t]) {
-      typeMap[t].total++;
-      if (bet.won) typeMap[t].correct++;
-    }
-  }
-
-  const indicators = types.map((t) => ({
-    name: typeLabels[t] || t,
-    max: 100,
-  }));
-
-  const values = types.map((t) => {
-    const { total, correct } = typeMap[t];
-    return total > 0 ? Math.round((correct / total) * 100) : 0;
-  });
-
-  return {
-    tooltip: {
-      trigger: 'item',
-      backgroundColor: 'rgba(255,255,255,0.85)',
-      borderColor: 'rgba(0,0,0,0.08)',
-      borderWidth: 1,
-      textStyle: { color: '#1e293b' },
-    },
-    radar: {
-      indicator: indicators,
-      shape: 'polygon',
-      axisName: {
-        color: '#64748b',
-        fontSize: 13,
-      },
-      splitArea: {
-        areaStyle: {
-          color: [
-            'rgba(99,102,241,0.03)',
-            'rgba(99,102,241,0.06)',
-            'rgba(99,102,241,0.09)',
-            'rgba(99,102,241,0.12)',
-            'rgba(99,102,241,0.15)',
-          ],
-        },
-      },
-      splitLine: {
-        lineStyle: { color: 'rgba(0,0,0,0.06)' },
-      },
-      axisLine: {
-        lineStyle: { color: 'rgba(0,0,0,0.08)' },
-      },
-    },
-    series: [
-      {
-        type: 'radar',
-        data: [
-          {
-            value: values,
-            name: '准确率',
-            symbol: 'circle',
-            symbolSize: 6,
-            lineStyle: { color: '#6366f1', width: 2 },
-            itemStyle: { color: '#6366f1' },
-            areaStyle: { color: 'rgba(99,102,241,0.2)' },
-          },
-        ],
-      },
-    ],
-  };
-});
-
-// Achievement badges
-const achievements = computed(() => {
-  const list = [];
-  const p = profile.value;
-  if (!p) return list;
-
-  if ((p.placedBets ?? 0) >= 1) list.push({ label: '初出茅庐', desc: '完成第一次下注', icon: '\u{1F3AF}' });
-  if ((p.placedBets ?? 0) >= 50) list.push({ label: '预测达人', desc: '完成 50 次下注', icon: '\u{1F525}' });
-  // 神算子 uses settled-bet count for accuracy denominator (totalBets), not raw placed count
-  if (p.accuracyRate >= 0.8 && p.totalBets >= 10) list.push({ label: '神算子', desc: '准确率超过 80%', icon: '\u{1F52E}' });
-  if (p.balance >= 5000) list.push({ label: '富甲一方', desc: '余额超过 5000', icon: '\u{1F4B0}' });
-
-  return list;
-});
+const auth = useAuthStore();
+const finance = useFinanceStore();
+const activities = useActivityV2Store();
+onMounted(async () => { await Promise.all([finance.refresh(), activities.refresh()]); await activities.hydrateMine(); });
+const categoryRows = computed(() => finance.categories.map((category) => ({ ...category, wallet: finance.wallet?.categories?.[category.id] })));
+const myApplications = computed(() => activities.activities.filter((item) => activities.applications[item.id]).map((item) => ({ activity: item, application: activities.applications[item.id] })));
+const ticketCount = computed(() => Object.values(activities.tickets).filter(Boolean).length);
+const paidTotal = computed(() => categoryRows.value.reduce((sum, item) => sum + Number(item.wallet?.paid?.available || 0), 0));
+const bonusTotal = computed(() => categoryRows.value.reduce((sum, item) => sum + Number(item.wallet?.bonus?.available || 0), 0));
+const shortAccount = computed(() => finance.wallet?.accountId ? `${finance.wallet.accountId.slice(0, 12)}…${finance.wallet.accountId.slice(-8)}` : '—');
 </script>
 
 <template>
   <div class="profile-page">
-    <h1 class="page-title">个人中心</h1>
-
-    <div class="profile-grid" v-if="profile">
-      <!-- Balance + stats -->
-      <GlassCard class="balance-card" padding="32px">
-        <div class="balance-header">
-          <h2 class="balance-title">{{ profile.name }}</h2>
-          <span class="user-role glass-subtle">{{ profile.role }}</span>
-        </div>
-        <div class="stats-row">
-          <div class="stat-item">
-            <span class="stat-value primary">{{ profile.balance }}</span>
-            <span class="stat-label">浙币余额</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-value success">{{ (profile.accuracyRate * 100).toFixed(1) }}%</span>
-            <span class="stat-label">预测准确率</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-value">{{ profile.placedBets ?? 0 }}</span>
-            <span class="stat-label">总下注次数</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-value">{{ profile.correctBets }} / {{ profile.totalBets }}</span>
-            <span class="stat-label">正确 / 已结算</span>
-          </div>
-        </div>
+    <section class="profile-hero"><div class="avatar">{{ auth.user?.name?.slice(0,1) || 'U' }}</div><div><p>PRIVATE ACCOUNT</p><h1>{{ auth.user?.name }}</h1><span>{{ auth.user?.role }} · {{ shortAccount }}</span></div><span class="privacy-badge">学号未写入链上</span></section>
+    <div class="profile-grid">
+      <GlassCard class="balance-card" padding="28px" :hoverable="false">
+        <div class="card-title"><div><p>ASSET OVERVIEW</p><h2>我的积分组合</h2></div><a href="/wallet">管理钱包 →</a></div>
+        <div class="stats-row"><div><strong>{{ finance.aBalance }}</strong><span>A 可用</span></div><div><strong>{{ formatAmount(paidTotal) }}</strong><span>B_paid</span></div><div><strong>{{ formatAmount(bonusTotal) }}</strong><span>B_bonus</span></div><div><strong>{{ ticketCount }}</strong><span>有效票据</span></div></div>
       </GlassCard>
 
-      <!-- Radar chart -->
-      <GlassCard class="radar-card" padding="24px">
-        <h2 class="card-title">分项准确率</h2>
-        <VChart
-          :option="radarOption"
-          style="height: 300px; width: 100%"
-          autoresize
-        />
+      <GlassCard class="category-card" padding="24px" :hoverable="false">
+        <div class="card-title"><div><p>CATEGORY WALLETS</p><h2>分类余额</h2></div></div>
+        <div class="category-list"><div v-for="row in categoryRows" :key="row.id"><span><b>{{ row.name }}</b><small>{{ row.id }}</small></span><span><b>{{ formatAmount(row.wallet?.paid?.available) }}</b><small>B_paid</small></span><span><b>{{ formatAmount(row.wallet?.bonus?.available) }}</b><small>B_bonus</small></span></div></div>
       </GlassCard>
 
-      <!-- Bet history -->
-      <GlassCard class="history-card" padding="24px">
-        <h2 class="card-title">预测记录</h2>
-        <div class="bet-list">
-          <div
-            v-for="bet in predStore.myBets"
-            :key="bet.betID || bet.eventID + bet.timestamp"
-            class="bet-item glass-subtle"
-          >
-            <div class="bet-info">
-              <span class="bet-event">{{ bet.eventID }}</span>
-              <span class="bet-option">{{ bet.option }}</span>
-            </div>
-            <div class="bet-meta">
-              <span class="bet-amount">{{ bet.amount }} 浙币</span>
-              <span class="bet-shares">{{ bet.shares?.toFixed(2) }} 份额</span>
-              <span
-                class="bet-result"
-                :class="bet.won ? 'won' : bet.won === false ? 'lost' : 'pending'"
-              >
-                {{ bet.won ? '胜' : bet.won === false ? '负' : '待定' }}
-              </span>
-            </div>
-          </div>
-        </div>
-        <p v-if="!predStore.myBets.length" class="empty-text">暂无预测记录</p>
+      <GlassCard class="privacy-card" padding="24px" :hoverable="false">
+        <div class="card-title"><div><p>PRIVACY BOUNDARY</p><h2>哪些信息不会公开</h2></div></div>
+        <ul><li><b>真实身份：</b>链上使用随机 opaque account ID，登录学号加密保存在服务端。</li><li><b>精确仓位：</b>结果选择和投入金额位于 Platform/Student 私有集合。</li><li><b>资金追踪：</b>市场公开快照经过五分钟延迟和取整，不提供个人排行榜。</li><li><b>现实边界：</b>组织级隐私并非零知识；授权节点管理员仍属于信任边界。</li></ul>
       </GlassCard>
 
-      <!-- Achievements -->
-      <GlassCard class="achievements-card" padding="24px">
-        <h2 class="card-title">成就徽章</h2>
-        <div class="badge-grid">
-          <div
-            v-for="badge in achievements"
-            :key="badge.label"
-            class="badge-item glass-subtle"
-          >
-            <span class="badge-icon">{{ badge.icon }}</span>
-            <span class="badge-label">{{ badge.label }}</span>
-            <span class="badge-desc">{{ badge.desc }}</span>
-          </div>
-        </div>
-        <p v-if="!achievements.length" class="empty-text">继续努力，解锁成就吧</p>
+      <GlassCard class="applications-card" padding="24px" :hoverable="false">
+        <div class="card-title"><div><p>MY ACTIVITY</p><h2>票务申请</h2></div><a href="/tickets">票务大厅 →</a></div>
+        <div class="application-list"><div v-for="entry in myApplications" :key="entry.activity.id"><span><b>{{ entry.activity.title }}</b><small>{{ new Date(entry.activity.startsAt).toLocaleString('zh-CN') }}</small></span><em :class="entry.application.status.toLowerCase()">{{ entry.application.status }}</em></div><p v-if="!myApplications.length">暂无申请记录</p></div>
+      </GlassCard>
+
+      <GlassCard class="rules-card" padding="24px" :hoverable="false">
+        <div class="card-title"><div><p>LIFECYCLE</p><h2>积分生命周期</h2></div></div>
+        <div class="rule-grid"><div><b>365 天</b><span>B_paid 到期后按储备退回 A</span></div><div><b>90 天</b><span>B_bonus 到期销毁，不可兑回</span></div><div><b>24 小时</b><span>新收到 B_paid 的转让冷却期</span></div><div><b>7 天</b><span>预测收益 Pending Claim 等待期</span></div></div>
       </GlassCard>
     </div>
   </div>
 </template>
 
 <style scoped>
-.profile-page {
-  padding-bottom: 48px;
-}
-
-.page-title {
-  font-size: 28px;
-  font-weight: 800;
-  margin-bottom: 32px;
-}
-
-.profile-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-}
-
-/* Balance card spans full width */
-.balance-card {
-  grid-column: 1 / -1;
-}
-
-.balance-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 24px;
-}
-
-.balance-title {
-  font-size: 24px;
-  font-weight: 800;
-}
-
-.user-role {
-  padding: 4px 14px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.stats-row {
-  display: flex;
-  justify-content: space-around;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.stat-value {
-  font-size: 28px;
-  font-weight: 800;
-}
-
-.stat-value.primary { color: var(--color-primary); }
-.stat-value.success { color: var(--color-success); }
-
-.stat-label {
-  font-size: 13px;
-  color: var(--color-text-tertiary);
-}
-
-.card-title {
-  font-size: 18px;
-  font-weight: 700;
-  margin-bottom: 16px;
-}
-
-/* History card spans full width */
-.history-card {
-  grid-column: 1 / -1;
-}
-
-.bet-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.bet-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-}
-
-.bet-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.bet-event {
-  font-weight: 600;
-}
-
-.bet-option {
-  font-size: 13px;
-  color: var(--color-text-secondary);
-}
-
-.bet-meta {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  font-size: 14px;
-}
-
-.bet-amount { color: var(--color-text-secondary); }
-.bet-shares { color: var(--color-text-tertiary); }
-
-.bet-result {
-  font-weight: 700;
-  padding: 2px 10px;
-  border-radius: 6px;
-}
-
-.bet-result.won { color: var(--color-success); background: rgba(34, 197, 94, 0.1); }
-.bet-result.lost { color: var(--color-danger); background: rgba(239, 68, 68, 0.1); }
-.bet-result.pending { color: var(--color-warning); background: rgba(245, 158, 11, 0.1); }
-
-/* Achievements */
-.achievements-card {
-  grid-column: 1 / -1;
-}
-
-.badge-grid {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.badge-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 16px 20px;
-  min-width: 120px;
-  text-align: center;
-  gap: 4px;
-}
-
-.badge-icon {
-  font-size: 32px;
-}
-
-.badge-label {
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.badge-desc {
-  font-size: 11px;
-  color: var(--color-text-tertiary);
-}
-
-.empty-text {
-  color: var(--color-text-tertiary);
-  font-size: 14px;
-  text-align: center;
-  padding: 20px 0;
-}
+.profile-page{padding:0 30px 48px}.profile-hero{display:flex;align-items:center;gap:18px;padding:38px 0 30px;border-bottom:2px solid var(--ec-ink);margin-bottom:22px}.avatar{display:grid;place-items:center;width:72px;height:72px;border-radius:var(--ec-r-card);background:var(--ec-ink);color:var(--ec-orange);font:800 34px var(--ec-font-display)}.profile-hero p,.card-title p{color:var(--ec-red);font:700 10px var(--ec-font-mono);letter-spacing:.16em}.profile-hero h1{font-size:38px}.profile-hero div>span{color:var(--ec-faint);font:500 10px var(--ec-font-mono)}.privacy-badge{margin-left:auto;padding:7px 12px;border-radius:var(--ec-r-pill);background:rgba(72,132,63,.1);color:var(--ec-open);font:700 10px var(--ec-font-mono)}.profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.balance-card{grid-column:1/-1}.card-title{display:flex;justify-content:space-between;align-items:start}.card-title h2{margin-top:4px}.card-title a{color:var(--ec-red);text-decoration:none;font-size:12px;font-weight:700}.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:24px}.stats-row div,.category-list>div,.application-list>div,.rule-grid div{padding:15px;border-radius:var(--ec-r-field);background:var(--ec-inset)}.stats-row strong,.stats-row span{display:block}.stats-row strong{font:800 30px var(--ec-font-display)}.stats-row span{color:var(--ec-faint);font:500 9px var(--ec-font-mono);margin-top:5px;text-transform:uppercase}.category-list,.application-list{display:grid;gap:8px;margin-top:18px}.category-list>div{display:grid;grid-template-columns:1fr auto auto;gap:22px;padding:11px}.category-list span b,.category-list span small,.application-list span b,.application-list span small{display:block}.category-list small,.application-list small{color:var(--ec-faint);font:500 9px var(--ec-font-mono);margin-top:3px}.privacy-card{background:var(--ec-dark);color:var(--ec-cream);border-color:var(--ec-dark)}.privacy-card .card-title h2{color:var(--ec-cream)}.privacy-card ul{display:grid;gap:11px;margin:18px 0 0;padding-left:18px}.privacy-card li{color:var(--ec-cream-4);font-size:12px;line-height:1.55}.applications-card,.rules-card{grid-column:1/-1}.application-list>div{display:flex;align-items:center;justify-content:space-between;padding:11px}.application-list em{font:700 10px var(--ec-font-mono);font-style:normal}.application-list em.pending{color:var(--ec-pending)}.application-list em.won{color:var(--ec-open)}.application-list em.lost{color:var(--ec-faint)}.application-list>p{color:var(--ec-faint);text-align:center}.rule-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px}.rule-grid b,.rule-grid span{display:block}.rule-grid b{color:var(--ec-red);font:800 22px var(--ec-font-display)}.rule-grid span{color:var(--ec-muted);font-size:11px;line-height:1.5;margin-top:5px}@media(max-width:760px){.profile-page{padding:0 16px 40px}.profile-grid{grid-template-columns:1fr}.privacy-card,.category-card{grid-column:1}.stats-row,.rule-grid{grid-template-columns:1fr 1fr}.privacy-badge{display:none}}@media(max-width:480px){.stats-row,.rule-grid{grid-template-columns:1fr}.category-list>div{grid-template-columns:1fr 1fr}.category-list>div>span:first-child{grid-column:1/-1}}
 </style>

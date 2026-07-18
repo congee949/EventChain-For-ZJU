@@ -1,5 +1,6 @@
 import FabricCAServices from 'fabric-ca-client';
 import { User } from 'fabric-common';
+import crypto from 'node:crypto';
 import { buildConnectionProfile } from '../config/fabric.js';
 import { putIdentity, getIdentity } from './wallet.js';
 
@@ -37,13 +38,9 @@ export async function enrollAdmin(orgMSP) {
 
 // Register and enroll a new user with the org's CA.
 //
-// Idempotent: passes an explicit deterministic secret on first registration so
-// re-enrollment works after server-side wallet/db wipes (the CA's identity DB
-// outlives the server's SQLite, so a fresh server with a re-registered user
-// would otherwise hit "Identity already registered" code 74 and have no way
-// to re-enroll). The secret is derived from userId and is demo-only — for
-// production, store a randomly generated secret in a secure key store.
-export async function registerAndEnrollUser(userId, orgMSP) {
+// V2 uses a random opaque enrollment ID and random one-time enrollment secret.
+// The demo reset removes both the CA database and the local wallet together.
+export async function registerAndEnrollUser(accountId, orgMSP, role) {
   const caClient = getCAClient(orgMSP);
 
   // Ensure the CA admin is enrolled first
@@ -58,34 +55,28 @@ export async function registerAndEnrollUser(userId, orgMSP) {
     adminIdentity.credentials.privateKey
   );
 
-  // Deterministic per-user secret so re-enroll works after wallet wipe.
-  const secret = `${userId}-pw`;
+  const secret = crypto.randomBytes(24).toString('hex');
 
-  // Register (idempotent — swallow "already registered" errors)
-  try {
-    await caClient.register(
-      {
+  await caClient.register(
+    {
         affiliation: '',
-        enrollmentID: userId,
+        enrollmentID: accountId,
         enrollmentSecret: secret,
         role: 'client',
-      },
-      adminUser
-    );
-  } catch (err) {
-    const msg = String(err?.message || '');
-    if (!msg.includes('already registered') && !msg.includes('code: 74')) {
-      throw err;
-    }
-    // Already registered — proceed to enroll with the deterministic secret.
-  }
+		attrs: [
+		  { name: 'eventchain.accountID', value: accountId, ecert: true },
+		  { name: 'eventchain.role', value: role, ecert: true },
+		],
+    },
+    adminUser
+  );
 
   // Enroll
   const enrollment = await caClient.enroll({
-    enrollmentID: userId,
+    enrollmentID: accountId,
     enrollmentSecret: secret,
   });
 
-  putIdentity(userId, orgMSP, enrollment.certificate, enrollment.key.toBytes());
-  return getIdentity(userId);
+  putIdentity(accountId, orgMSP, enrollment.certificate, enrollment.key.toBytes());
+  return getIdentity(accountId);
 }

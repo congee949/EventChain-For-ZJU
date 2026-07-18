@@ -14,7 +14,7 @@ async function render() {
   await QRCodeLib.toCanvas(canvasRef.value, props.value, {
     width: props.size,
     margin: 2,
-    color: { dark: '#1e293b', light: '#ffffff' },
+    color: { dark: '#211913', light: '#FBF7EF' },
   });
 }
 

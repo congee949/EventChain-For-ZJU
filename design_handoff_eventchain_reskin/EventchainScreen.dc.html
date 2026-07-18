@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<script src="./ds-base.js"></script>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#E7E1D6;font-family:'Archivo',sans-serif;color:#211913;display:flex;justify-content:center;align-items:flex-start;min-height:100vh;padding:28px 0}
+  a{color:#E8482C;text-decoration:none}a:hover{color:#FF6A2B}
+  input,textarea,select{font-family:inherit;color:#211913}
+  input::placeholder,textarea::placeholder{color:#A99C87}
+  .ec-in{width:100%;padding:11px 13px;background:#FFFDF8;border:1px solid #DAD0BE;border-radius:10px;font-size:14px;outline:none}
+  .ec-in:focus{border-color:#E8482C}
+  .ec-mono{font-family:'JetBrains Mono',monospace}
+  .ec-saira{font-family:'Saira Condensed',sans-serif}
+  .ec-kick{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.18em;color:#E8482C;text-transform:uppercase}
+  .ec-nav{cursor:pointer;transition:color .12s}
+  .ec-row-hover{transition:background .12s}.ec-row-hover:hover{background:#F1EADA}
+  @keyframes ecPulse{0%,100%{opacity:1}50%{opacity:.35}}
+</style>
+</helmet>
+
+<!-- ===================== LOGIN ===================== -->
+<sc-if value="{{ isLogin }}" hint-placeholder-val="{{ true }}">
+<div style="width:452px;margin-top:40px;background:#F7F1E6;border:1px solid #DAD0BE;border-radius:16px;box-shadow:0 40px 90px -30px rgba(30,20,10,.4);overflow:hidden">
+  <div style="height:6px;background:#E8482C"></div>
+  <div style="padding:40px 40px 34px">
+    <div style="display:flex;justify-content:center;margin-bottom:26px">
+      <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.Logo" theme="light" size="24" hint-size="190px,30px"></x-import>
+    </div>
+    <div class="ec-kick" style="text-align:center;margin-bottom:9px">CLOSED-LOOP ACCOUNT</div>
+    <h2 class="ec-saira" style="text-align:center;font-weight:800;font-size:34px;margin:0;text-transform:uppercase;letter-spacing:.01em">欢迎回来</h2>
+    <p style="text-align:center;color:#6E6152;font-size:13.5px;line-height:1.6;margin:8px 0 28px">登录你的封闭积分账户；课程名单由管理员预置。</p>
+    <div style="display:flex;flex-direction:column;gap:15px">
+      <div>
+        <div class="ec-mono" style="font-size:10px;letter-spacing:.14em;color:#6E6152;text-transform:uppercase;margin-bottom:7px">学号 · STUDENT ID</div>
+        <input class="ec-in ec-mono" value="{{ loginId }}" onInput="{{ onLoginId }}" placeholder="3220100001">
+      </div>
+      <div>
+        <div class="ec-mono" style="font-size:10px;letter-spacing:.14em;color:#6E6152;text-transform:uppercase;margin-bottom:7px">密码 · PASSWORD</div>
+        <input class="ec-in" type="password" value="{{ loginPw }}" onInput="{{ onLoginPw }}" placeholder="••••••••">
+      </div>
+      <sc-if value="{{ loginError }}"><div style="color:#B42318;font-size:12.5px;text-align:center">{{ loginError }}</div></sc-if>
+      <div onClick="{{ onLoginSubmit }}" style="margin-top:4px">
+        <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.Button" variant="primary" size="md" style="width:100%" hint-size="100%,44px">登录</x-import>
+      </div>
+    </div>
+    <p style="text-align:center;color:#8A7D6A;font-size:12px;margin:24px 0 0">没有账号？请联系课程管理员加入名单。</p>
+  </div>
+</div>
+</sc-if>
+
+<!-- ===================== APP SHELL ===================== -->
+<sc-if value="{{ loggedIn }}" hint-placeholder-val="{{ true }}">
+<div style="width:1180px;background:#F7F1E6;border-radius:20px;overflow:hidden;box-shadow:0 40px 90px -30px rgba(30,20,10,.4)">
+
+  <!-- masthead -->
+  <div style="display:flex;align-items:center;justify-content:space-between;height:60px;padding:0 30px;border-bottom:2px solid #211913">
+    <div onClick="{{ goMarket }}" style="cursor:pointer">
+      <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.Logo" theme="light" size="22" hint-size="180px,28px"></x-import>
+    </div>
+    <div style="display:flex;gap:22px;font-family:'Saira Condensed',sans-serif;font-weight:600;font-size:15px;text-transform:uppercase;letter-spacing:.03em">
+      <sc-for list="{{ navLinks }}" as="lnk" hint-placeholder-count="5">
+        <span class="ec-nav" onClick="{{ lnk.go }}" style="color:{{ lnk.color }}">{{ lnk.label }}</span>
+      </sc-for>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;font-family:'JetBrains Mono',monospace;font-size:12.5px">
+      <span style="color:#E8482C;font-weight:700">A {{ aBalanceFmt }}</span>
+      <span style="color:#6E6152">{{ userName }}</span>
+      <span class="ec-nav" onClick="{{ onLogout }}" style="color:#A99C87;font-size:11px">退出</span>
+    </div>
+  </div>
+
+  <!-- ledger dateline -->
+  <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.LedgerStrip" variant="dateline" tag="ON-CHAIN LEDGER" items="{{ ledgerItems }}" date="2026-07-18" hint-size="100%,34px"></x-import>
+
+  <!-- ===================== MARKET HOME ===================== -->
+  <sc-if value="{{ isMarket }}">
+  <div>
+    <!-- hero -->
+    <div style="padding:36px 30px 28px;border-bottom:2px solid #211913;display:grid;grid-template-columns:1fr 320px;gap:40px;align-items:end">
+      <div>
+        <div class="ec-kick" style="letter-spacing:.2em;margin-bottom:13px">CAMPUS SPORTS · CLOSED-LOOP POINTS</div>
+        <h1 class="ec-saira" style="font-weight:900;font-size:64px;line-height:.9;letter-spacing:-.01em;margin:0;text-transform:uppercase">赛事、积分与活动<br>在同一条可信链路上</h1>
+        <p style="color:#4A4034;font-size:14.5px;line-height:1.75;max-width:600px;margin:18px 0 0">用 B_bonus 参与预测，用 B_paid 兑换真实服务；公开市场只展示五分钟取整快照，个人仓位保留在私有集合。</p>
+        <div style="display:flex;gap:10px;margin-top:20px">
+          <div onClick="{{ goTickets }}"><x-import component-from-global-scope="EventChainDesignSystem_ba04a2.Button" variant="ink" size="sm" hint-size="140px,40px">查看活动票务</x-import></div>
+          <div onClick="{{ goWallet }}"><x-import component-from-global-scope="EventChainDesignSystem_ba04a2.Button" variant="outline" theme="light" size="sm" hint-size="120px,40px">管理 A / B</x-import></div>
+        </div>
+      </div>
+      <div style="background:#211913;border-radius:16px;padding:24px 22px;color:#F3ECDD">
+        <div class="ec-mono" style="font-size:10px;letter-spacing:.16em;color:#C7A98A;text-transform:uppercase">我的封闭积分 · A</div>
+        <div class="ec-saira" style="font-weight:800;font-size:56px;line-height:1;margin:8px 0 0;color:#FF6A2B">{{ aBalanceFmt }}</div>
+        <div class="ec-mono" style="font-size:11px;color:#9C8E7A;margin-bottom:16px">A 可用</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="background:#2C2118;border-radius:10px;padding:11px 12px"><div class="ec-saira" style="font-weight:700;font-size:22px">{{ paidTotalFmt }}</div><div class="ec-mono" style="font-size:9.5px;color:#9C8E7A;margin-top:2px">B_PAID</div></div>
+          <div style="background:#2C2118;border-radius:10px;padding:11px 12px"><div class="ec-saira" style="font-weight:700;font-size:22px">{{ bonusTotalFmt }}</div><div class="ec-mono" style="font-size:9.5px;color:#9C8E7A;margin-top:2px">B_BONUS</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- trust strip -->
+    <div class="ec-mono" style="display:flex;gap:26px;padding:12px 30px;border-bottom:1px solid #DAD0BE;font-size:11px;color:#6E6152;letter-spacing:.04em">
+      <span>◆ 组织级私有数据</span><span>◷ 7 天 PENDING CLAIM</span><span>⚖ 挑战与仲裁</span><span>↻ 到期与销毁规则</span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:0">
+      <!-- markets -->
+      <div style="padding:26px 30px 40px;border-right:1px solid #DAD0BE">
+        <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.SectionHeader" theme="light" rule="true" kicker="PUBLIC SNAPSHOTS" title="正在进行的预测市场" meta="{{ marketCountLabel }}" hint-size="100%,54px"></x-import>
+        <div style="margin-top:6px">
+          <sc-for list="{{ marketRows }}" as="m" hint-placeholder-count="3">
+            <div class="ec-row-hover" onClick="{{ m.open }}" style="display:flex;justify-content:space-between;align-items:center;padding:18px 4px;border-bottom:1px solid #DAD0BE;gap:18px;cursor:pointer">
+              <div class="ec-saira" style="font-weight:800;font-size:30px;color:#C9BCA9;width:40px">{{ m.num }}</div>
+              <div style="flex:1;min-width:0">
+                <div class="ec-mono" style="font-size:10px;color:#E8482C;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">{{ m.sport }}</div>
+                <div class="ec-saira" style="font-weight:700;font-size:23px;line-height:1">{{ m.title }}</div>
+                <div class="ec-mono" style="display:flex;gap:16px;margin-top:9px;font-size:11px;color:#6E6152"><span>{{ m.currency }}</span><span>池 {{ m.poolFmt }}</span><span>{{ m.timeLabel }}</span></div>
+              </div>
+              <div style="width:190px">
+                <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.ProbabilityBar" outcomes="{{ m.outcomes }}" variant="stacked" theme="light" hint-size="190px,70px"></x-import>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- sidebar -->
+      <div style="padding:26px 26px 40px;display:flex;flex-direction:column;gap:22px">
+        <div>
+          <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.SectionHeader" theme="light" kicker="UPCOMING" title="近期活动" size="20" hint-size="100%,44px"></x-import>
+          <div style="display:flex;flex-direction:column;gap:9px;margin-top:12px">
+            <sc-for list="{{ upcomingRows }}" as="u" hint-placeholder-count="3">
+              <div class="ec-row-hover" onClick="{{ goTickets }}" style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:12px;border:1px solid #DAD0BE;border-radius:11px;cursor:pointer">
+                <div><div class="ec-saira" style="font-weight:700;font-size:16px;line-height:1.1">{{ u.title }}</div><div class="ec-mono" style="font-size:10px;color:#8A7D6A;margin-top:4px">{{ u.time }}</div></div>
+                <div class="ec-mono" style="font-size:11px;color:#E8482C;font-weight:700">{{ u.count }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="background:#211913;border-radius:14px;padding:22px;color:#F3ECDD">
+          <div style="font-size:22px;color:#FF6A2B;margin-bottom:6px">◈</div>
+          <h3 class="ec-saira" style="font-weight:700;font-size:22px;margin:0 0 8px;text-transform:uppercase">不是“聪明钱”排行榜</h3>
+          <p style="color:#B7A992;font-size:12.5px;line-height:1.6;margin:0">系统不会公开个人下注记录、精确余额或实时资金流。你看到的是经过取整和延迟的市场快照。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ===================== EVENT DETAIL ===================== -->
+  <sc-if value="{{ isDetail }}">
+  <div style="padding:26px 30px 42px">
+    <span class="ec-nav ec-saira" onClick="{{ goMarket }}" style="display:inline-block;color:#E8482C;font-weight:600;font-size:15px;text-transform:uppercase;letter-spacing:.03em;margin-bottom:20px">← 返回赛事市场</span>
+    <!-- header -->
+    <div style="border:1px solid #DAD0BE;border-radius:16px;background:#FBF7EF;padding:30px;text-align:center">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="ec-mono" style="font-size:11px;color:#6E6152;text-transform:uppercase;letter-spacing:.08em">{{ cur.categoryName }}</div>
+        <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.StatusPill" status="open" label="{{ cur.statusText }}" theme="light" hint-size="120px,26px"></x-import>
+      </div>
+      <div class="ec-mono" style="font-size:11px;color:#E8482C;letter-spacing:.14em;margin-top:16px">{{ cur.marketId }}</div>
+      <h1 class="ec-saira" style="font-weight:900;font-size:48px;line-height:.95;letter-spacing:-.01em;margin:6px 0 8px;text-transform:uppercase">{{ cur.title }}</h1>
+      <p style="color:#6E6152;font-size:13.5px;margin:0">{{ cur.copy }}</p>
+      <sc-if value="{{ cur.hasCountdown }}"><div class="ec-mono" style="display:flex;justify-content:center;gap:8px;align-items:center;margin-top:14px;font-size:12px;color:#8A7D6A"><span>距离锁盘</span><b style="color:#E8482C;font-size:15px">{{ cur.countdown }}</b></div></sc-if>
+      <div style="max-width:520px;margin:24px auto 0">
+        <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.ProbabilityBar" outcomes="{{ cur.outcomes }}" variant="split" theme="light" hint-size="100%,90px"></x-import>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start;margin-top:20px">
+      <!-- left column -->
+      <div style="display:grid;gap:20px">
+        <div style="border:1px solid #DAD0BE;border-radius:16px;background:#FBF7EF;padding:24px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
+            <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.SectionHeader" theme="light" kicker="PARI-MUTUEL POOL" title="奖金池状态" size="22" hint-size="200px,44px"></x-import>
+            <span class="ec-mono" style="font-size:11px;font-weight:700;color:#E8482C">{{ cur.currency }}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+            <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.StatTile" variant="inset" theme="light" value="{{ cur.poolFmt }}" label="公开池规模" size="28" hint-size="100%,80px"></x-import>
+            <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.StatTile" variant="inset" theme="light" value="{{ cur.capFmt }}" label="市场上限" size="28" hint-size="100%,80px"></x-import>
+            <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.StatTile" variant="inset" theme="light" value="{{ cur.participants }}" label="参与人数" size="28" hint-size="100%,80px"></x-import>
+          </div>
+          <p style="color:#6E6152;font-size:12px;line-height:1.65;margin:16px 0 0">精确仓位、个人选择和实时流入不公开。页面不会通过排行榜暴露其他参与者。</p>
+        </div>
+
+        <div style="border:1px solid #DAD0BE;border-radius:16px;background:#FBF7EF;padding:24px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+            <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.SectionHeader" theme="light" kicker="CONNECTED ACTIVITY" title="{{ cur.activityTitle }}" size="22" hint-size="220px,44px"></x-import>
+          </div>
+          <div class="ec-mono" style="display:flex;flex-wrap:wrap;gap:16px;color:#6E6152;font-size:11.5px">{{ cur.activityMeta }}</div>
+          <div onClick="{{ goTickets }}" style="display:inline-block;margin-top:16px"><x-import component-from-global-scope="EventChainDesignSystem_ba04a2.Button" variant="outline" theme="light" size="sm" hint-size="150px,38px">前往票务大厅</x-import></div>
+        </div>
+
+        <div style="border:1px solid #DAD0BE;border-radius:16px;background:#FBF7EF;padding:24px">
+          <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.SectionHeader" theme="light" kicker="SETTLEMENT SAFETY" title="结算与纠错路径" size="22" rule="true" hint-size="100%,54px"></x-import>
+          <div style="display:grid;gap:11px;margin-top:16px">
+            <sc-for list="{{ settlementSteps }}" as="st" hint-placeholder-count="4">
+              <div style="display:grid;grid-template-columns:30px 1fr;align-items:center;gap:12px">
+                <div class="ec-mono" style="display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#211913;color:#FF6A2B;font-size:12px;font-weight:700">{{ st.n }}</div>
+                <span style="color:#4A4034;font-size:13px">{{ st.text }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <!-- position panel -->
+      <div style="display:grid;gap:20px">
+        <sc-if value="{{ isStudent }}" hint-placeholder-val="{{ true }}">
+        <div style="border:1px solid #211913;border-radius:16px;background:#FFFFFF;padding:24px">
+          <div class="ec-kick" style="margin-bottom:3px">PRIVATE POSITION</div>
+          <h2 class="ec-saira" style="font-weight:800;font-size:26px;margin:0 0 4px;text-transform:uppercase">建立预测仓位</h2>
+          <p style="color:#6E6152;font-size:13px;margin:0 0 16px">可用 {{ cur.bucketLabel }}：<b style="color:#211913">{{ cur.availFmt }}</b></p>
+          <div style="display:grid;gap:8px">
+            <sc-for list="{{ curOutcomeButtons }}" as="o" hint-placeholder-count="2">
+              <div class="ec-row-hover" onClick="{{ o.onSelect }}" style="display:flex;justify-content:space-between;align-items:center;border:1.5px solid {{ o.border }};border-radius:11px;padding:12px 14px;cursor:pointer;background:{{ o.bg }}">
+                <span class="ec-saira" style="font-weight:700;font-size:17px">{{ o.label }}</span><b class="ec-mono" style="font-size:13px;color:#E8482C">{{ o.pctLabel }}</b>
+              </div>
+            </sc-for>
+          </div>
+          <div class="ec-mono" style="font-size:10px;letter-spacing:.14em;color:#6E6152;text-transform:uppercase;margin:18px 0 8px">投入数量</div>
+          <div style="display:flex;align-items:center;border:1px solid #DAD0BE;border-radius:10px;overflow:hidden">
+            <span class="ec-nav" onClick="{{ onDec }}" style="width:44px;text-align:center;padding:11px 0;font-size:18px;color:#6E6152;border-right:1px solid #DAD0BE">−</span>
+            <input class="ec-in ec-saira" style="border:0;border-radius:0;text-align:center;font-weight:700;font-size:20px" value="{{ amount }}" onInput="{{ onAmount }}">
+            <span class="ec-nav" onClick="{{ onInc }}" style="width:44px;text-align:center;padding:11px 0;font-size:18px;color:#6E6152;border-left:1px solid #DAD0BE">+</span>
+          </div>
+          <div onClick="{{ onPlace }}" style="margin-top:14px"><x-import component-from-global-scope="EventChainDesignSystem_ba04a2.Button" variant="primary" size="md" style="width:100%" hint-size="100%,44px">确认建立仓位</x-import></div>
+          <p style="color:#8A7D6A;font-size:11.5px;line-height:1.6;margin:14px 0 0">仓位不可转让；结算费仅在存在获胜方时收取。无人命中或市场作废时原路退款且不收费。</p>
+        </div>
+        </sc-if>
+        <sc-if value="{{ notStudent }}">
+        <div style="border:1px solid #DAD0BE;border-radius:16px;background:#FBF7EF;padding:24px">
+          <div class="ec-kick" style="margin-bottom:3px">ROLE VIEW</div>
+          <h2 class="ec-saira" style="font-weight:800;font-size:24px;margin:0 0 10px;text-transform:uppercase">只读市场视图</h2>
+          <p style="color:#6E6152;font-size:12.5px;line-height:1.65;margin:0 0 16px">当前证书角色为 {{ role }}。只有 student 身份可以建立仓位或提出参与者挑战；管理动作请前往运营控制台。</p>
+          <div onClick="{{ goAdmin }}"><x-import component-from-global-scope="EventChainDesignSystem_ba04a2.Button" variant="ink" size="sm" style="width:100%" hint-size="100%,40px">前往运营控制台</x-import></div>
+        </div>
+        </sc-if>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ===================== TICKETS ===================== -->
+  <sc-if value="{{ isTickets }}">
+  <div style="padding:30px 30px 42px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #211913;padding-bottom:24px">
+      <div style="max-width:640px">
+        <div class="ec-kick" style="letter-spacing:.2em;margin-bottom:11px">COMMIT–REVEAL LOTTERY</div>
+        <h1 class="ec-saira" style="font-weight:900;font-size:56px;line-height:.9;letter-spacing:-.01em;margin:0;text-transform:uppercase">活动票务大厅</h1>
+        <p style="color:#4A4034;font-size:14px;line-height:1.7;margin:14px 0 0">报名不是先到先得。验证者预先承诺种子，截止后由组织者揭示并确定中签名单。</p>
+      </div>
+      <div style="text-align:right">
+        <div class="ec-saira" style="font-weight:800;font-size:52px;line-height:1;color:#FF6A2B">{{ activeCount }}</div>
+        <div class="ec-mono" style="font-size:10px;color:#6E6152;letter-spacing:.14em">进行中活动</div>
+      </div>
+    </div>
+
+    <div style="margin-top:26px">
+      <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.SectionHeader" theme="light" kicker="AVAILABLE" title="可以报名的活动" meta="申请记录仅本人可见" hint-size="100%,50px"></x-import>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px">
+        <sc-for list="{{ ticketActivityRows }}" as="a" hint-placeholder-count="3">
+          <div style="border:1px solid #DAD0BE;border-radius:14px;background:#FBF7EF;padding:20px;display:flex;flex-direction:column">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.Badge" theme="light" tone="clay" hint-size="70px,22px">{{ a.category }}</x-import>
+              <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.StatusPill" status="open" label="报名中" theme="light" hint-size="90px,24px"></x-import>
+            </div>
+            <h3 class="ec-saira" style="font-weight:700;font-size:22px;line-height:1.05;margin:14px 0">{{ a.title }}</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div style="background:#F1EADA;border-radius:9px;padding:10px 12px"><div class="ec-saira" style="font-weight:700;font-size:22px">{{ a.applied }}</div><div class="ec-mono" style="font-size:9px;color:#8A7D6A;margin-top:2px">已申请</div></div>
+              <div style="background:#F1EADA;border-radius:9px;padding:10px 12px"><div class="ec-saira" style="font-weight:700;font-size:22px">{{ a.capacity }}</div><div class="ec-mono" style="font-size:9px;color:#8A7D6A;margin-top:2px">容量</div></div>
+            </div>
+            <div class="ec-mono" style="display:flex;justify-content:space-between;margin:13px 0 4px;font-size:11px;color:#6E6152"><span>报名截止</span><b style="color:#E8482C">{{ a.countdown }}</b></div>
+            <div class="ec-mono" style="font-size:10.5px;color:#8A7D6A;margin-bottom:15px">活动开始：{{ a.startsIn }}</div>
+            <div style="margin-top:auto">
+              <sc-if value="{{ a.canApply }}" hint-placeholder-val="{{ true }}"><div onClick="{{ a.onApply }}"><x-import component-from-global-scope="EventChainDesignSystem_ba04a2.Button" variant="primary" size="sm" style="width:100%" hint-size="100%,40px">提交抽签申请</x-import></div></sc-if>
+              <sc-if value="{{ a.applied2 }}"><div class="ec-mono" style="display:flex;justify-content:space-between;align-items:center;padding:11px 13px;border-radius:10px;background:#F1EADA;font-size:11px"><span style="color:#6E6152">我的申请</span><b style="color:{{ a.appColor }}">{{ a.appStatus }}</b></div></sc-if>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:26px;margin-top:34px">
+      <div>
+        <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.SectionHeader" theme="light" kicker="MY APPLICATIONS" title="我的申请" hint-size="100%,44px"></x-import>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+          <sc-for list="{{ applicationRows }}" as="r" hint-placeholder-count="2">
+            <div style="display:grid;grid-template-columns:auto 1fr auto auto;gap:12px;align-items:center;border:1px solid #DAD0BE;border-radius:11px;padding:13px 15px;background:#FBF7EF">
+              <span style="font-size:16px;color:{{ r.color }}">{{ r.glyph }}</span>
+              <div><div class="ec-saira" style="font-weight:700;font-size:16px">{{ r.title }}</div><div class="ec-mono" style="font-size:9.5px;color:#8A7D6A;margin-top:2px">{{ r.id }}</div></div>
+              <b class="ec-mono" style="font-size:11px;color:{{ r.color }}">{{ r.status }}</b>
+              <sc-if value="{{ r.canClaim }}"><span class="ec-nav ec-saira" onClick="{{ r.onClaim }}" style="font-weight:700;font-size:13px;color:#fff;background:#48843F;padding:6px 11px;border-radius:8px;text-transform:uppercase">领取票据</span></sc-if>
+            </div>
+          </sc-for>
+          <sc-if value="{{ noApplications }}"><p style="color:#8A7D6A;text-align:center;font-size:13px;padding:16px 0">暂无申请记录</p></sc-if>
+        </div>
+      </div>
+      <div>
+        <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.SectionHeader" theme="light" kicker="PRIVATE TICKETS" title="我的动态票据" hint-size="100%,44px"></x-import>
+        <div style="display:flex;flex-direction:column;gap:12px;margin-top:14px">
+          <sc-for list="{{ ticketRows }}" as="t" hint-placeholder-count="1">
+            <div style="display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;border:1px solid #211913;border-radius:14px;padding:20px;background:#FFFFFF">
+              <div>
+                <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.StatusPill" status="won" label="有效" theme="light" hint-size="80px,24px"></x-import>
+                <h3 class="ec-saira" style="font-weight:700;font-size:20px;margin:10px 0 3px">{{ t.title }}</h3>
+                <div class="ec-mono" style="font-size:9.5px;color:#8A7D6A;word-break:break-all">{{ t.ticketId }}</div>
+                <div class="ec-mono" style="font-size:10px;color:#8A7D6A;margin-top:12px;max-width:180px;line-height:1.5">二维码每 30 秒变化，包含本机秘密，请勿转发截图。</div>
+              </div>
+              <div style="text-align:center">
+                <div style="width:128px;height:128px;border-radius:8px;background-image:repeating-conic-gradient(#211913 0 25%,#FFFFFF 0 50%);background-size:12px 12px;border:1px solid #211913"></div>
+                <div class="ec-mono" style="font-size:9px;color:#8A7D6A;margin-top:6px">{{ t.proof }}</div>
+              </div>
+            </div>
+          </sc-for>
+          <sc-if value="{{ noTickets }}"><p style="color:#8A7D6A;text-align:center;font-size:13px;padding:16px 0">中签并领取后，动态二维码会显示在这里</p></sc-if>
+        </div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ===================== SERVICES ===================== -->
+  <sc-if value="{{ isServices }}">
+  <div style="padding:30px 30px 42px">
+    <div style="border-bottom:2px solid #211913;padding-bottom:22px">
+      <div class="ec-kick" style="letter-spacing:.2em;margin-bottom:11px">B_PAID UTILITY</div>
+      <h1 class="ec-saira" style="font-weight:900;font-size:56px;line-height:.9;letter-spacing:-.01em;margin:0;text-transform:uppercase">器材、场馆与活动兑换</h1>
+      <p style="color:#4A4034;font-size:14px;line-height:1.7;margin:14px 0 0;max-width:700px">服务只收 B_paid。组织者必须预存取消赔付保证金和延期 B_bonus 预算。</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:26px">
+      <sc-for list="{{ offerRows }}" as="o" hint-placeholder-count="3">
+        <div style="border:1px solid #DAD0BE;border-radius:14px;background:#FBF7EF;padding:22px;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.Badge" theme="light" tone="red" hint-size="70px,22px">{{ o.typeLabel }}</x-import>
+            <span class="ec-mono" style="font-size:10px;color:#6E6152">余量 {{ o.inventory }}</span>
+          </div>
+          <h2 class="ec-saira" style="font-weight:700;font-size:23px;line-height:1.05;margin:14px 0 12px">{{ o.title }}</h2>
+          <div style="display:flex;align-items:baseline;gap:6px"><span class="ec-saira" style="font-weight:800;font-size:38px;color:#211913">{{ o.priceFmt }}</span><span class="ec-mono" style="font-size:11px;color:#8A7D6A">B_paid</span></div>
+          <div class="ec-mono" style="font-size:10.5px;color:#6E6152;line-height:1.6;margin:10px 0 16px">取消赔付 {{ o.cancel }}× · 保证金余 {{ o.guaranteeFmt }} A</div>
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:9px">
+            <div class="ec-in ec-mono" style="display:flex;align-items:center;justify-content:space-between;color:#8A7D6A;font-size:12px">预约时间<span style="color:#C9BCA9">◷</span></div>
+            <div onClick="{{ o.onOrder }}"><x-import component-from-global-scope="EventChainDesignSystem_ba04a2.Button" variant="ink" size="sm" style="width:100%" hint-size="100%,40px">兑换</x-import></div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ===================== WALLET ===================== -->
+  <sc-if value="{{ isWallet }}">
+  <div style="padding:30px 30px 42px">
+    <div style="border-bottom:2px solid #211913;padding-bottom:22px">
+      <div class="ec-kick" style="letter-spacing:.2em;margin-bottom:11px">PRIVATE WALLET</div>
+      <h1 class="ec-saira" style="font-weight:900;font-size:56px;line-height:.9;letter-spacing:-.01em;margin:0;text-transform:uppercase">A / B 钱包</h1>
+      <p style="color:#4A4034;font-size:14px;line-height:1.7;margin:14px 0 0;max-width:720px">A 是封闭积分；B_paid 有 A 储备并可兑回，B_bonus 来自签到/补偿且不可兑回。</p>
+    </div>
+
+    <div style="background:#211913;border-radius:16px;padding:26px 28px;color:#F3ECDD;margin-top:24px;display:flex;align-items:baseline;gap:20px">
+      <div class="ec-mono" style="font-size:11px;letter-spacing:.16em;color:#C7A98A">A 可用</div>
+      <div class="ec-saira" style="font-weight:800;font-size:52px;line-height:1;color:#FF6A2B">{{ aBalanceFmt }}</div>
+      <div class="ec-mono" style="font-size:11px;color:#9C8E7A">冻结 {{ aReservedFmt }}</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px">
+      <sc-for list="{{ walletCards }}" as="c" hint-placeholder-count="3">
+        <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.CategoryWallet" theme="light" sport="{{ c.sport }}" code="{{ c.code }}" paid="{{ c.paid }}" paid-locked="{{ c.paidLocked }}" bonus="{{ c.bonus }}" bonus-locked="{{ c.bonusLocked }}" hint-size="100%,190px"></x-import>
+      </sc-for>
+    </div>
+
+    <div style="border:1px solid #DAD0BE;border-radius:16px;background:#FBF7EF;padding:24px;margin-top:16px">
+      <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.SectionHeader" theme="light" kicker="CONVERT · TRANSFER" title="兑换与转让" rule="true" hint-size="100%,54px"></x-import>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:18px">
+        <div class="ec-in ec-saira" style="width:auto;display:flex;align-items:center;gap:10px;font-weight:700">{{ walletCatLabel }} <span style="color:#C9BCA9">▾</span></div>
+        <div style="display:flex;align-items:center;border:1px solid #DAD0BE;border-radius:10px;overflow:hidden;background:#FFFDF8">
+          <span class="ec-nav" onClick="{{ onWalletDec }}" style="width:38px;text-align:center;padding:10px 0;color:#6E6152;border-right:1px solid #DAD0BE">−</span>
+          <span class="ec-saira" style="width:60px;text-align:center;font-weight:700;font-size:18px">{{ walletAmount }}</span>
+          <span class="ec-nav" onClick="{{ onWalletInc }}" style="width:38px;text-align:center;padding:10px 0;color:#6E6152;border-left:1px solid #DAD0BE">+</span>
+        </div>
+        <div onClick="{{ onConvert }}"><x-import component-from-global-scope="EventChainDesignSystem_ba04a2.Button" variant="primary" size="sm" hint-size="120px,40px">A → B_paid</x-import></div>
+        <div onClick="{{ onRedeem }}"><x-import component-from-global-scope="EventChainDesignSystem_ba04a2.Button" variant="outline" theme="light" size="sm" hint-size="120px,40px">B_paid → A</x-import></div>
+        <div onClick="{{ onTransfer }}"><x-import component-from-global-scope="EventChainDesignSystem_ba04a2.Button" variant="ghost" theme="light" size="sm" hint-size="120px,40px">转让 B_paid</x-import></div>
+      </div>
+      <p class="ec-mono" style="color:#8A7D6A;font-size:11px;line-height:1.7;margin:18px 0 0">默认：每日 500 B_paid、最多 5 个收款方、转入后冷却 24 小时；B_paid 365 天到期自动退 A，B_bonus 90 天到期销毁。</p>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ===================== PROFILE (我的) ===================== -->
+  <sc-if value="{{ isMe }}">
+  <div style="padding:30px 30px 42px">
+    <div style="display:flex;align-items:center;gap:18px;border-bottom:2px solid #211913;padding-bottom:24px">
+      <div class="ec-saira" style="display:grid;place-items:center;width:70px;height:70px;border-radius:18px;background:#211913;color:#FF6A2B;font-size:34px;font-weight:800">陈</div>
+      <div>
+        <div class="ec-kick" style="margin-bottom:4px">PRIVATE ACCOUNT</div>
+        <h1 class="ec-saira" style="font-weight:800;font-size:36px;line-height:1;margin:0;text-transform:uppercase">陈同学</h1>
+        <div class="ec-mono" style="font-size:11px;color:#8A7D6A;margin-top:5px">{{ roleName }} · {{ accountShort }}</div>
+      </div>
+      <span class="ec-mono" style="margin-left:auto;padding:8px 13px;border-radius:999px;background:#EAF3E4;color:#48843F;font-size:11px;font-weight:700">● 学号未写入链上</span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px">
+      <div style="grid-column:1/-1;border:1px solid #DAD0BE;border-radius:16px;background:#FBF7EF;padding:26px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
+          <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.SectionHeader" theme="light" kicker="ASSET OVERVIEW" title="我的积分组合" hint-size="220px,44px"></x-import>
+          <span class="ec-nav ec-mono" onClick="{{ goWallet }}" style="font-size:11px;color:#E8482C;font-weight:700">管理钱包 →</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+          <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.StatTile" variant="band" theme="light" value="{{ aBalanceFmt }}" label="A 可用" accent="orange" hint-size="100%,84px"></x-import>
+          <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.StatTile" variant="band" theme="light" value="{{ paidTotalFmt }}" label="B_paid" hint-size="100%,84px"></x-import>
+          <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.StatTile" variant="band" theme="light" value="{{ bonusTotalFmt }}" label="B_bonus" accent="clay" hint-size="100%,84px"></x-import>
+          <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.StatTile" variant="band" theme="light" value="{{ ticketCount }}" label="有效票据" hint-size="100%,84px"></x-import>
+        </div>
+      </div>
+
+      <div style="border:1px solid #DAD0BE;border-radius:16px;background:#FBF7EF;padding:24px">
+        <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.SectionHeader" theme="light" kicker="CATEGORY WALLETS" title="分类余额" hint-size="200px,44px"></x-import>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px">
+          <sc-for list="{{ walletCards }}" as="c" hint-placeholder-count="3">
+            <div style="display:grid;grid-template-columns:1fr auto auto;gap:20px;align-items:center;padding:11px 13px;border-radius:10px;background:#F1EADA">
+              <div><div class="ec-saira" style="font-weight:700;font-size:16px">{{ c.sport }}</div><div class="ec-mono" style="font-size:9px;color:#8A7D6A;margin-top:2px">{{ c.code }}</div></div>
+              <div style="text-align:right"><div class="ec-saira" style="font-weight:700;font-size:15px">{{ c.paidFmt }}</div><div class="ec-mono" style="font-size:8.5px;color:#8A7D6A">B_paid</div></div>
+              <div style="text-align:right"><div class="ec-saira" style="font-weight:700;font-size:15px">{{ c.bonusFmt }}</div><div class="ec-mono" style="font-size:8.5px;color:#8A7D6A">B_bonus</div></div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="border:1px solid #211913;border-radius:16px;background:#211913;padding:24px;color:#F3ECDD">
+        <div class="ec-kick" style="color:#FF6A2B;margin-bottom:4px">PRIVACY BOUNDARY</div>
+        <h2 class="ec-saira" style="font-weight:700;font-size:22px;margin:0 0 14px;text-transform:uppercase">哪些信息不会公开</h2>
+        <div style="display:flex;flex-direction:column;gap:11px">
+          <sc-for list="{{ privacyRows }}" as="p" hint-placeholder-count="4">
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:10px"><span style="color:#FF6A2B">◆</span><span style="color:#B7A992;font-size:12px;line-height:1.5"><b style="color:#F3ECDD">{{ p.k }}</b>{{ p.v }}</span></div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="grid-column:1/-1;border:1px solid #DAD0BE;border-radius:16px;background:#FBF7EF;padding:24px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+          <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.SectionHeader" theme="light" kicker="MY ACTIVITY" title="票务申请" hint-size="200px,44px"></x-import>
+          <span class="ec-nav ec-mono" onClick="{{ goTickets }}" style="font-size:11px;color:#E8482C;font-weight:700">票务大厅 →</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <sc-for list="{{ applicationRows }}" as="r" hint-placeholder-count="2">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:10px;background:#F1EADA">
+              <div class="ec-saira" style="font-weight:700;font-size:16px">{{ r.title }}</div>
+              <b class="ec-mono" style="font-size:11px;color:{{ r.color }}">{{ r.status }}</b>
+            </div>
+          </sc-for>
+          <sc-if value="{{ noApplications }}"><p style="color:#8A7D6A;text-align:center;font-size:13px;padding:8px">暂无申请记录</p></sc-if>
+        </div>
+      </div>
+
+      <div style="grid-column:1/-1;border:1px solid #DAD0BE;border-radius:16px;background:#FBF7EF;padding:24px">
+        <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.SectionHeader" theme="light" kicker="LIFECYCLE" title="积分生命周期" rule="true" hint-size="100%,54px"></x-import>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px">
+          <sc-for list="{{ lifecycleRows }}" as="l" hint-placeholder-count="4">
+            <div style="background:#F1EADA;border-radius:12px;padding:16px"><div class="ec-saira" style="font-weight:800;font-size:24px;color:#E8482C">{{ l.k }}</div><div style="color:#4A4034;font-size:11.5px;line-height:1.5;margin-top:6px">{{ l.v }}</div></div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ===================== ADMIN CONSOLE ===================== -->
+  <sc-if value="{{ isAdmin }}">
+  <div style="padding:30px 30px 42px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #211913;padding-bottom:22px">
+      <div style="max-width:680px">
+        <div class="ec-kick" style="letter-spacing:.2em;margin-bottom:11px">ROLE-BOUND OPERATIONS</div>
+        <h1 class="ec-saira" style="font-weight:900;font-size:54px;line-height:.9;letter-spacing:-.01em;margin:0;text-transform:uppercase">运营控制台</h1>
+        <p style="color:#4A4034;font-size:13.5px;line-height:1.65;margin:14px 0 0">当前角色：<b style="color:#E8482C">{{ role }}</b>。按钮可见性只是交互提示，最终权限由 Fabric 证书属性和链码再次校验。</p>
+      </div>
+      <div style="text-align:right">
+        <div class="ec-mono" style="font-size:11px;color:#48843F"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#48843F;margin-right:7px;animation:ecPulse 1.6s infinite"></span>V2 NETWORK</div>
+        <div class="ec-mono" style="font-size:11px;color:#6E6152;margin-top:4px">finance · activity</div>
+      </div>
+    </div>
+
+    <!-- role switcher -->
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:20px">
+      <span class="ec-mono" style="font-size:10px;color:#8A7D6A;letter-spacing:.12em">切换证书角色</span>
+      <sc-for list="{{ roleButtons }}" as="rb" hint-placeholder-count="6">
+        <span class="ec-nav ec-mono" onClick="{{ rb.onClick }}" style="font-size:11px;font-weight:600;padding:7px 12px;border-radius:8px;border:1px solid {{ rb.border }};background:{{ rb.bg }};color:{{ rb.color }};text-transform:uppercase;letter-spacing:.04em">{{ rb.label }}</span>
+      </sc-for>
+    </div>
+
+    <!-- overview -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:22px">
+      <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.StatTile" variant="card" theme="light" value="{{ marketCount }}" label="预测市场" hint-size="100%,86px"></x-import>
+      <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.StatTile" variant="card" theme="light" value="{{ activityCount }}" label="活动" hint-size="100%,86px"></x-import>
+      <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.StatTile" variant="card" theme="light" value="{{ offerCount }}" label="服务商品" hint-size="100%,86px"></x-import>
+      <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.StatTile" variant="card" theme="light" value="{{ role }}" label="证书角色" accent="orange" size="24" hint-size="100%,86px"></x-import>
+    </div>
+
+    <!-- create -->
+    <sc-if value="{{ canCreate }}">
+    <div style="margin-top:30px">
+      <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.SectionHeader" theme="light" kicker="CREATE" title="创建业务对象" meta="组织者保证金与预算在链码中校验" rule="true" hint-size="100%,54px"></x-import>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px">
+        <div style="border:1px solid #DAD0BE;border-radius:14px;background:#FBF7EF;padding:20px">
+          <h3 class="ec-saira" style="font-weight:700;font-size:19px;margin:0 0 14px;text-transform:uppercase">预测市场</h3>
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <div class="ec-in ec-mono" style="font-size:12px;color:#6E6152">market ID · 自动生成</div>
+            <div class="ec-in ec-mono" style="font-size:12px;color:#6E6152">类别 · 篮球 ▾</div>
+            <div class="ec-in ec-mono" style="font-size:12px;color:#6E6152">主队胜, 平局, 客队胜</div>
+            <div class="ec-in ec-mono" style="font-size:12px;color:#6E6152">锁盘时间 · 2026-07-22 19:30 ◷</div>
+            <div onClick="{{ onCreateMarket }}"><x-import component-from-global-scope="EventChainDesignSystem_ba04a2.Button" variant="primary" size="sm" style="width:100%" hint-size="100%,40px">创建 B_bonus 市场</x-import></div>
+          </div>
+        </div>
+        <div style="border:1px solid #DAD0BE;border-radius:14px;background:#FBF7EF;padding:20px">
+          <h3 class="ec-saira" style="font-weight:700;font-size:19px;margin:0 0 14px;text-transform:uppercase">活动与抽签</h3>
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <div class="ec-in ec-mono" style="font-size:12px;color:#6E6152">activity ID · 自动生成</div>
+            <div class="ec-in ec-mono" style="font-size:12px;color:#6E6152">标题 · 新建校园活动</div>
+            <div class="ec-in ec-mono" style="font-size:12px;color:#6E6152">容量 · 100</div>
+            <div class="ec-in ec-mono" style="font-size:12px;color:#6E6152">报名截止 · 2026-07-20 18:00 ◷</div>
+            <div onClick="{{ onCreateActivity }}"><x-import component-from-global-scope="EventChainDesignSystem_ba04a2.Button" variant="primary" size="sm" style="width:100%" hint-size="100%,40px">创建活动草稿</x-import></div>
+          </div>
+        </div>
+        <div style="border:1px solid #DAD0BE;border-radius:14px;background:#FBF7EF;padding:20px">
+          <h3 class="ec-saira" style="font-weight:700;font-size:19px;margin:0 0 14px;text-transform:uppercase">服务兑换商品</h3>
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <div class="ec-in ec-mono" style="font-size:12px;color:#6E6152">offer ID · 自动生成</div>
+            <div class="ec-in ec-mono" style="font-size:12px;color:#6E6152">标题 · 新建服务</div>
+            <div class="ec-in ec-mono" style="font-size:12px;color:#6E6152">类型 · 场馆 ▾</div>
+            <div class="ec-in ec-mono" style="font-size:12px;color:#6E6152">价格 · 50 · 库存 20</div>
+            <div onClick="{{ onCreateOffer }}"><x-import component-from-global-scope="EventChainDesignSystem_ba04a2.Button" variant="primary" size="sm" style="width:100%" hint-size="100%,40px">创建并预存保证金</x-import></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- control plane -->
+    <div style="margin-top:30px">
+      <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.SectionHeader" theme="light" kicker="CONTROL PLANE" title="状态、结果与结算" rule="true" hint-size="100%,54px"></x-import>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:16px">
+        <div style="border:1px solid #DAD0BE;border-radius:14px;background:#FBF7EF;padding:20px">
+          <h3 class="ec-saira" style="font-weight:700;font-size:18px;margin:0 0 14px;text-transform:uppercase">市场动作</h3>
+          <div class="ec-in ec-mono" style="font-size:12px;color:#6E6152;margin-bottom:12px">mkt_cs_ee_0722 · OPEN ▾</div>
+          <div style="display:flex;flex-wrap:wrap;gap:7px">
+            <sc-for list="{{ marketActions }}" as="b" hint-placeholder-count="4">
+              <span class="ec-nav ec-saira" onClick="{{ b.onClick }}" style="font-size:13px;font-weight:600;padding:7px 12px;border-radius:8px;border:1px solid #211913;color:#211913;text-transform:uppercase">{{ b.label }}</span>
+            </sc-for>
+          </div>
+        </div>
+        <div style="border:1px solid #DAD0BE;border-radius:14px;background:#FBF7EF;padding:20px">
+          <h3 class="ec-saira" style="font-weight:700;font-size:18px;margin:0 0 14px;text-transform:uppercase">抽签与活动状态</h3>
+          <div class="ec-in ec-mono" style="font-size:12px;color:#6E6152;margin-bottom:12px">学院杯篮球决赛 · APPLICATION_OPEN ▾</div>
+          <div style="display:flex;flex-wrap:wrap;gap:7px">
+            <sc-for list="{{ drawActions }}" as="b" hint-placeholder-count="3">
+              <span class="ec-nav ec-saira" onClick="{{ b.onClick }}" style="font-size:13px;font-weight:600;padding:7px 12px;border-radius:8px;border:1px solid #211913;color:#211913;text-transform:uppercase">{{ b.label }}</span>
+            </sc-for>
+          </div>
+        </div>
+        <sc-if value="{{ canOperate }}">
+        <div style="border:1px solid #211913;border-radius:14px;background:#211913;padding:20px;color:#F3ECDD">
+          <h3 class="ec-saira" style="font-weight:700;font-size:18px;margin:0 0 10px;text-transform:uppercase">分批 Claim Worker</h3>
+          <p style="color:#B7A992;font-size:11.5px;line-height:1.6;margin:0 0 14px">每批扫描 100 个参与者、并发 5，MVCC 冲突自动重试。收益先进入 7 天 Pending 状态。</p>
+          <div onClick="{{ onProcessClaims }}"><x-import component-from-global-scope="EventChainDesignSystem_ba04a2.Button" variant="primary" size="sm" style="width:100%" hint-size="100%,40px">处理所有待结算批次</x-import></div>
+          <sc-if value="{{ claimReport }}"><pre class="ec-mono" style="font-size:10px;color:#C7A98A;background:#0C0805;border-radius:8px;padding:12px;margin:12px 0 0;overflow:auto">{{ claimReport }}</pre></sc-if>
+        </div>
+        </sc-if>
+      </div>
+    </div>
+
+    <!-- live objects -->
+    <div style="margin-top:30px">
+      <x-import component-from-global-scope="EventChainDesignSystem_ba04a2.SectionHeader" theme="light" kicker="LIVE OBJECTS" title="当前对象" rule="true" hint-size="100%,54px"></x-import>
+      <div style="display:flex;flex-direction:column;gap:7px;margin-top:14px">
+        <sc-for list="{{ objectRows }}" as="o" hint-placeholder-count="5">
+          <div class="ec-mono" style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px;align-items:center;padding:12px 15px;border-radius:10px;background:#FBF7EF;border:1px solid #DAD0BE;font-size:12px">
+            <b style="color:#211913">{{ o.id }}</b><span style="color:#6E6152">{{ o.cat }}</span><em style="font-style:normal;color:#48843F;font-weight:700">{{ o.status }}</em><span style="color:#6E6152">{{ o.extra }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- MOUNT: additional routes inserted here -->
+  <!-- @ROUTES@ -->
+
+</div>
+</sc-if>
+
+<!-- toast -->
+<sc-if value="{{ toast }}">
+<div class="ec-mono" style="position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#211913;color:#F3ECDD;padding:12px 20px;border-radius:999px;font-size:12.5px;box-shadow:0 20px 50px -20px rgba(0,0,0,.6);z-index:100">✓ {{ toast }}</div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    const base = Date.now();
+    this.state = {
+      base, now: base,
+      loggedIn: false,
+      route: 'login',
+      loginId: '3220100001', loginPw: '', loginError: '',
+      role: 'student',
+      currentMarketId: null,
+      amount: 10,
+      selectedOutcome: {},
+      walletCat: 'cat_basketball', walletAmount: 10,
+      toast: '',
+      aBalance: 1240,
+      wallet: {
+        cat_basketball: { paid:{available:320,locked:40}, bonus:{available:210,locked:15} },
+        cat_football:   { paid:{available:180,locked:0},  bonus:{available:95,locked:0} },
+        cat_badminton:  { paid:{available:120,locked:0},  bonus:{available:60,locked:20} },
+      },
+      markets: [
+        { marketId:'mkt_cs_ee_0722', categoryId:'cat_basketball', sport:'篮球 · 学院杯', title:'计算机学院 vs 电气学院', currency:'B_bonus', stakeBucket:'BONUS', pool:12480, cap:40000, status:'OPEN', participants:214, eventId:'act_bk_final', closeOffset:8073,
+          outcomes:[{id:'o1',label:'主队',pct:46.2},{id:'o2',label:'客队',pct:53.8}] },
+        { marketId:'mkt_sf_ab_0722', categoryId:'cat_football', sport:'足球 · 校联赛', title:'半决赛 · A 队 vs B 队', currency:'B_bonus', stakeBucket:'BONUS', pool:8940, cap:30000, status:'OPEN', participants:168, eventId:'act_fb_semi', closeOffset:null,
+          outcomes:[{id:'o1',label:'主队胜',pct:38.1},{id:'o2',label:'平局',pct:22.4},{id:'o3',label:'客队胜',pct:39.5}] },
+        { marketId:'mkt_bd_cl_0722', categoryId:'cat_badminton', sport:'羽毛球 · 公开赛', title:'男单决赛 · 陈 vs 李', currency:'B_paid', stakeBucket:'PAID', pool:5210, cap:20000, status:'OPEN', participants:96, eventId:'act_bd_open', closeOffset:492,
+          outcomes:[{id:'o1',label:'陈',pct:61.0},{id:'o2',label:'李',pct:39.0}] },
+      ],
+      activities: [
+        { id:'act_bk_final', categoryId:'cat_basketball', title:'学院杯篮球决赛', capacity:200, applied:156, status:'APPLICATION_OPEN', appCloseOffset:14400, startsIn:'2026-07-22 19:30' },
+        { id:'act_concert', categoryId:'cat_music', title:'校园夏夜音乐节', capacity:500, applied:486, status:'APPLICATION_OPEN', appCloseOffset:5400, startsIn:'2026-07-25 20:00' },
+        { id:'act_bd_open', categoryId:'cat_badminton', title:'羽毛球公开赛 · 决赛日', capacity:64, applied:41, status:'APPLICATION_OPEN', appCloseOffset:900, startsIn:'2026-07-21 14:00' },
+      ],
+      applications: { act_concert:'PENDING', act_bd_open:'WON' },
+      tickets: {},
+      offers: [
+        { offerId:'off_venue_02', categoryId:'cat_basketball', offerType:'VENUE', typeLabel:'场馆', title:'中心体育馆 2 号场', price:50, inventory:12, cancellationBps:15000, guarantee:500 },
+        { offerId:'off_eq_racket', categoryId:'cat_badminton', offerType:'EQUIPMENT', typeLabel:'器材', title:'羽毛球拍租借 · 单副', price:8, inventory:30, cancellationBps:12000, guarantee:120 },
+        { offerId:'off_pass_gym', categoryId:'cat_basketball', offerType:'EVENT_PASS', typeLabel:'活动通行', title:'健身房月度通行卡', price:120, inventory:8, cancellationBps:13000, guarantee:360 },
+      ],
+      claimReport: null,
+    };
+    this.cats = { cat_basketball:'篮球', cat_football:'足球', cat_badminton:'羽毛球', cat_music:'文艺' };
+  }
+  componentDidMount(){ this._t = setInterval(()=>this.setState({now:Date.now()}), 1000); }
+  componentWillUnmount(){ clearInterval(this._t); }
+
+  fmt(n){ if(n==null||isNaN(Number(n))) return '—'; return Number(n).toLocaleString('en-US',{maximumFractionDigits:2}); }
+  elapsed(){ return (this.state.now - this.state.base)/1000; }
+  cd(offset){ if(offset==null) return null; const rem=Math.max(0,offset-this.elapsed()); const h=Math.floor(rem/3600),m=Math.floor(rem%3600/60),s=Math.floor(rem%60); return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
+  toast(msg){ this.setState({toast:msg}); clearTimeout(this._toast); this._toast=setTimeout(()=>this.setState({toast:''}),2600); }
+  go(route){ this.setState({route}); }
+  bucketOf(m){ return this.state.wallet[m.categoryId]?.[m.stakeBucket==='PAID'?'paid':'bonus']; }
+
+  onLoginSubmit(){ if(!this.state.loginId.trim()){ this.setState({loginError:'请输入学号'}); return; } this.setState({loggedIn:true, route:'market', loginError:''}); }
+
+  place(){
+    const m=this.state.markets.find(x=>x.marketId===this.state.currentMarketId); if(!m) return;
+    const amt=Number(this.state.amount)||0; if(amt<=0){ this.toast('请输入投入数量'); return; }
+    const b=this.bucketOf(m); if(b && amt>b.available){ this.toast('可用余额不足'); return; }
+    this.setState(s=>{ const w=JSON.parse(JSON.stringify(s.wallet)); const k=m.stakeBucket==='PAID'?'paid':'bonus'; w[m.categoryId][k].available-=amt; w[m.categoryId][k].locked+=amt; const markets=s.markets.map(x=>x.marketId===m.marketId?{...x,pool:x.pool+amt,participants:x.participants+1}:x); return {wallet:w,markets}; });
+    this.toast('仓位已写入私有账本');
+  }
+  apply(id){ this.setState(s=>({applications:{...s.applications,[id]:'PENDING'}, activities:s.activities.map(a=>a.id===id?{...a,applied:a.applied+1}:a)})); this.toast('申请已写入私有账本'); }
+  claimTicket(id){ this.setState(s=>({tickets:{...s.tickets,[id]:true}})); this.toast('票据已领取；秘密只保存在本浏览器'); }
+  order(o){ this.setState(s=>({offers:s.offers.map(x=>x.offerId===o.offerId?{...x,inventory:Math.max(0,x.inventory-1)}:x)})); this.toast('订单已创建，取消保证金已预先锁定'); }
+  convert(){ const cat=this.state.walletCat; const amt=Number(this.state.walletAmount)||0; if(amt<=0){this.toast('请输入数量');return;} if(amt>this.state.aBalance){this.toast('A 余额不足');return;} this.setState(s=>{ const w=JSON.parse(JSON.stringify(s.wallet)); w[cat].paid.available+=amt; return {wallet:w, aBalance:s.aBalance-amt}; }); this.toast(`${amt} A 已兑换为 B_paid`); }
+  redeem(){ const cat=this.state.walletCat; const amt=Number(this.state.walletAmount)||0; this.setState(s=>{ const w=JSON.parse(JSON.stringify(s.wallet)); if(w[cat].paid.available<amt){return {};} w[cat].paid.available-=amt; return {wallet:w, aBalance:s.aBalance+amt*0.995}; }); this.toast('B_paid 已扣 0.5% 手续费兑回 A'); }
+  transfer(){ const cat=this.state.walletCat; const amt=Number(this.state.walletAmount)||0; this.setState(s=>{ const w=JSON.parse(JSON.stringify(s.wallet)); if(w[cat].paid.available<amt){return {};} w[cat].paid.available-=amt; return {wallet:w}; }); this.toast('转让已提交，收款方 24 小时后可用'); }
+  processClaims(){ this.setState({claimReport:{ processed:100, matured:0, pending:100, shards:16, retries:2 }}); this.toast('已处理待结算批次，收益进入 7 天 Pending'); }
+  setRole(r){ this.setState({role:r}); this.toast('证书角色已切换为 '+r); }
+  createMarket(){ this.setState(s=>{ const n=s.markets.length+1; return {markets:[...s.markets,{marketId:'mkt_new_'+n, categoryId:'cat_basketball', sport:'篮球 · 新建', title:'新建 B_bonus 市场 '+n, currency:'B_bonus', stakeBucket:'BONUS', pool:0, cap:4000, status:'OPEN', participants:0, eventId:'act_bk_final', closeOffset:3600, outcomes:[{id:'o1',label:'主队胜',pct:40},{id:'o2',label:'平局',pct:20},{id:'o3',label:'客队胜',pct:40}]}]}; }); this.toast('B_bonus 市场已创建'); }
+  createActivity(){ this.setState(s=>{ const n=s.activities.length+1; return {activities:[...s.activities,{id:'act_new_'+n, categoryId:'cat_basketball', title:'新建校园活动 '+n, capacity:100, applied:0, status:'APPLICATION_OPEN', appCloseOffset:7200, startsIn:'2026-07-28 19:00'}]}; }); this.toast('活动草稿已创建'); }
+  createOffer(){ this.setState(s=>{ const n=s.offers.length+1; return {offers:[...s.offers,{offerId:'off_new_'+n, categoryId:'cat_basketball', offerType:'VENUE', typeLabel:'场馆', title:'新建服务 '+n, price:50, inventory:20, cancellationBps:15000, guarantee:500}]}; }); this.toast('服务商品已创建并锁定赔付预算'); }
+  opsToast(msg){ this.toast(msg); }
+
+  renderVals(){
+    const s=this.state;
+    const navDefs=[
+      {label:'赛事市场',route:'market'},{label:'票务大厅',route:'tickets'},{label:'服务兑换',route:'services'},{label:'A / B 钱包',route:'wallet'},{label:'我的',route:'me'},
+    ];
+    navDefs.push({label:'管理',route:'admin'});
+    const navLinks=navDefs.map(n=>({label:n.label, color: s.route===n.route?'#E8482C':'#6E6152', go:()=>this.go(n.route)}));
+
+    const paidTotal=Object.values(s.wallet).reduce((a,c)=>a+c.paid.available,0);
+    const bonusTotal=Object.values(s.wallet).reduce((a,c)=>a+c.bonus.available,0);
+
+    const marketRows=s.markets.map((m,i)=>{
+      const cd=this.cd(m.closeOffset);
+      const timeLabel = m.closeOffset==null ? '三路盘' : (this.elapsed()>=m.closeOffset ? '等待锁盘' : `距锁盘 ${cd}`);
+      return {...m, num:String(i+1).padStart(2,'0'), poolFmt:this.fmt(m.pool), timeLabel,
+        outcomes:m.outcomes.map(o=>({label:o.label,pct:o.pct})), open:()=>this.setState({currentMarketId:m.marketId,route:'detail'})};
+    });
+    const upcomingRows=s.activities.map(a=>({title:a.title, time:a.startsIn, count:`${a.applied}/${a.capacity}`}));
+
+    // detail
+    const m=s.markets.find(x=>x.marketId===s.currentMarketId);
+    let detail={};
+    if(m){
+      const sel=s.selectedOutcome[m.marketId] || m.outcomes[0].id;
+      const act=s.activities.find(a=>a.id===m.eventId);
+      const b=this.bucketOf(m);
+      const accepting = m.status==='OPEN' && (m.closeOffset==null || this.elapsed()<m.closeOffset);
+      detail={
+        cur:{
+          marketId:m.marketId, title:m.title, categoryName:this.cats[m.categoryId]||m.categoryId,
+          statusText: accepting?'预测开放':'等待锁盘', currency:m.currency,
+          copy: m.stakeBucket==='BONUS'?'仅使用不可兑回的 B_bonus · 公开概率来自五分钟取整快照':'使用有 A 储备的 B_paid · 公开概率来自五分钟取整快照',
+          poolFmt:this.fmt(m.pool), capFmt:this.fmt(m.cap), participants:m.participants,
+          hasCountdown: m.closeOffset!=null, countdown:this.cd(m.closeOffset)||'',
+          bucketLabel: m.stakeBucket==='PAID'?'B_paid':'B_bonus', availFmt:this.fmt(b?.available),
+          outcomes:m.outcomes.map(o=>({label:o.label,pct:o.pct})),
+          activityTitle: act?act.title:'关联活动', activityMeta: act?`容量 ${act.capacity} · 申请 ${act.applied} · ${act.startsIn}`:'—',
+        },
+        curOutcomeButtons: m.outcomes.map(o=>({label:o.label, pctLabel:o.pct.toFixed(1)+'%',
+          border: sel===o.id?'#E8482C':'#DAD0BE', bg: sel===o.id?'#FCEEE9':'#FBF7EF',
+          onSelect:()=>this.setState(st=>({selectedOutcome:{...st.selectedOutcome,[m.marketId]:o.id}}))})),
+      };
+    }
+    // tickets
+    const appColorMap={PENDING:'#9A6700',WON:'#48843F',LOST:'#8A7D6A'};
+    const appGlyph={PENDING:'◷',WON:'★',LOST:'◌'};
+    const ticketActivityRows=s.activities.map(a=>{
+      const appStatus=s.applications[a.id]||null;
+      const canApply = s.role==='student' && a.status==='APPLICATION_OPEN' && this.elapsed()<a.appCloseOffset && !appStatus;
+      return {id:a.id, title:a.title, category:this.cats[a.categoryId]||a.categoryId, applied:a.applied, capacity:a.capacity,
+        countdown:this.cd(a.appCloseOffset)||'00:00:00', startsIn:a.startsIn,
+        canApply, applied2:!!appStatus, appStatus, appColor:appColorMap[appStatus]||'#6E6152',
+        onApply:()=>this.apply(a.id)};
+    });
+    const applicationRows=s.activities.filter(a=>s.applications[a.id]).map(a=>{
+      const st=s.applications[a.id];
+      return {title:a.title, id:a.id, status:st, glyph:appGlyph[st]||'◷', color:appColorMap[st]||'#6E6152',
+        canClaim: st==='WON' && !s.tickets[a.id], onClaim:()=>this.claimTicket(a.id)};
+    });
+    const ticketRows=s.activities.filter(a=>s.tickets[a.id]).map(a=>({
+      title:a.title, ticketId:`tkt_${a.id.replace('act_','')}_${(Math.floor(this.state.now/30000)%9973).toString(36)}`,
+      proof:`0x${(Math.floor(this.state.now/30000)%0xffffff).toString(16).padStart(6,'0')}…rot30s`,
+    }));
+
+    const settlementSteps=[
+      {n:'1',text:'组织者提交结果和证据摘要'},{n:'2',text:'独立验证者二次确认并开启挑战期'},
+      {n:'3',text:'争议时由仲裁者投票；否则临时结算'},{n:'4',text:'Claim 等待 7 天后成熟，期间允许暂停和更正'},
+    ];
+
+    return {
+      isDetail: s.route==='detail',
+      isStudent: s.role==='student',
+      notStudent: s.role!=='student',
+      goAdmin:()=>this.go('admin'),
+      ...detail,
+      settlementSteps,
+      isTickets: s.route==='tickets',
+      activeCount: s.activities.length,
+      ticketActivityRows, applicationRows, ticketRows,
+      noApplications: applicationRows.length===0,
+      noTickets: ticketRows.length===0,
+      isServices: s.route==='services',
+      offerRows: s.offers.map(o=>({typeLabel:o.typeLabel, inventory:o.inventory, title:o.title, priceFmt:this.fmt(o.price), cancel:(o.cancellationBps/10000).toFixed(2), guaranteeFmt:this.fmt(o.guarantee), onOrder:()=>this.order(o)})),
+      isAdmin: s.route==='admin',
+      role: s.role,
+      marketCount: s.markets.length, activityCount: s.activities.length, offerCount: s.offers.length,
+      canCreate: s.role==='organizer',
+      canOperate: ['operator','admin'].includes(s.role),
+      claimReport: s.claimReport? JSON.stringify(s.claimReport,null,2):'',
+      roleButtons: ['student','organizer','verifier','operator','arbitrator','admin'].map(r=>({label:r, onClick:()=>this.setRole(r),
+        border: s.role===r?'#E8482C':'#DAD0BE', bg: s.role===r?'#211913':'#FBF7EF', color: s.role===r?'#FF6A2B':'#6E6152'})),
+      onCreateMarket:()=>this.createMarket(), onCreateActivity:()=>this.createActivity(), onCreateOffer:()=>this.createOffer(),
+      onProcessClaims:()=>this.processClaims(),
+      marketActions: [
+        ...(['organizer','admin'].includes(s.role)?[{label:'开放',fn:'市场已开放'},{label:'锁盘',fn:'市场已锁盘'}]:[]),
+        ...(s.role==='organizer'?[{label:'提交结果',fn:'结果已提交，进入挑战期'}]:[]),
+        ...(['verifier','admin'].includes(s.role)?[{label:'二次确认',fn:'验证者已二次确认'}]:[]),
+        ...(['operator','admin'].includes(s.role)?[{label:'临时结算',fn:'市场已临时结算'}]:[]),
+        ...(s.role==='arbitrator'?[{label:'仲裁投票',fn:'仲裁投票已记录'}]:[]),
+      ].map(b=>({label:b.label, onClick:()=>this.opsToast(b.fn)})),
+      drawActions: [
+        ...(['verifier','admin'].includes(s.role)?[{label:'承诺种子',fn:'验证者已承诺抽签种子'}]:[]),
+        ...(s.role==='organizer'?[{label:'揭示并抽签',fn:'已揭示种子并确定中签名单'}]:[]),
+        ...(['organizer','admin'].includes(s.role)?[{label:'更新状态',fn:'活动状态已更新'}]:[]),
+      ].map(b=>({label:b.label, onClick:()=>this.opsToast(b.fn)})),
+      objectRows: [
+        ...s.markets.map(m=>({id:m.marketId, cat:this.cats[m.categoryId]||m.categoryId, status:m.status, extra:'池 '+this.fmt(m.pool)})),
+        ...s.activities.map(a=>({id:a.title, cat:this.cats[a.categoryId]||a.categoryId, status:a.status, extra:a.applied+'/'+a.capacity})),
+      ],
+      isMe: s.route==='me',
+      roleName: s.role, accountShort: 'acct_7f3ac2e1…9b04',
+      ticketCount: Object.values(s.tickets).filter(Boolean).length,
+      privacyRows: [
+        {k:'真实身份：', v:'链上使用随机 opaque account ID，登录学号加密保存在服务端。'},
+        {k:'精确仓位：', v:'结果选择和投入金额位于 Platform/Student 私有集合。'},
+        {k:'资金追踪：', v:'市场公开快照经过五分钟延迟和取整，不提供个人排行榜。'},
+        {k:'现实边界：', v:'组织级隐私并非零知识；授权节点管理员仍属于信任边界。'},
+      ],
+      lifecycleRows: [
+        {k:'365 天', v:'B_paid 到期后按储备退回 A'},{k:'90 天', v:'B_bonus 到期销毁，不可兑回'},
+        {k:'24 小时', v:'新收到 B_paid 的转让冷却期'},{k:'7 天', v:'预测收益 Pending Claim 等待期'},
+      ],
+      isWallet: s.route==='wallet',
+      aReservedFmt: this.fmt(120),
+      walletCards: Object.keys(s.wallet).map(code=>({ code, sport:this.cats[code], paid:s.wallet[code].paid.available, paidLocked:s.wallet[code].paid.locked, bonus:s.wallet[code].bonus.available, bonusLocked:s.wallet[code].bonus.locked, paidFmt:this.fmt(s.wallet[code].paid.available), bonusFmt:this.fmt(s.wallet[code].bonus.available) })),
+      walletCatLabel: this.cats[s.walletCat],
+      walletAmount: s.walletAmount,
+      onWalletInc:()=>this.setState(st=>({walletAmount:(Number(st.walletAmount)||0)+5})),
+      onWalletDec:()=>this.setState(st=>({walletAmount:Math.max(0,(Number(st.walletAmount)||0)-5)})),
+      onConvert:()=>this.convert(), onRedeem:()=>this.redeem(), onTransfer:()=>this.transfer(),
+      amount:s.amount,
+      onAmount:(e)=>this.setState({amount:e.target.value}),
+      onInc:()=>this.setState(st=>({amount:(Number(st.amount)||0)+5})),
+      onDec:()=>this.setState(st=>({amount:Math.max(0,(Number(st.amount)||0)-5)})),
+      onPlace:()=>this.place(),
+      isLogin: s.route==='login' && !s.loggedIn,
+      loggedIn: s.loggedIn,
+      isMarket: s.route==='market',
+      loginId:s.loginId, loginPw:s.loginPw, loginError:s.loginError,
+      onLoginId:(e)=>this.setState({loginId:e.target.value}),
+      onLoginPw:(e)=>this.setState({loginPw:e.target.value}),
+      onLoginSubmit:()=>this.onLoginSubmit(),
+      onLogout:()=>this.setState({loggedIn:false,route:'login'}),
+      navLinks,
+      userName:'陈同学',
+      aBalanceFmt:this.fmt(s.aBalance),
+      paidTotalFmt:this.fmt(paidTotal), bonusTotalFmt:this.fmt(bonusTotal),
+      ledgerItems:['BLOCK #148,392','0x9f3a…c2e1','finance-cc','committed 24s ago'],
+      goMarket:()=>this.go('market'), goTickets:()=>this.go('tickets'), goWallet:()=>this.go('wallet'),
+      marketCountLabel:`${s.markets.length} 个市场`,
+      marketRows, upcomingRows,
+      toast:s.toast,
+    };
+  }
+}
+</script>
+</body>
+</html>

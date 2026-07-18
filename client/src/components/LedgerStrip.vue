@@ -1,0 +1,5 @@
+<script setup>
+defineProps({tag:{type:String,default:'ON-CHAIN LEDGER'},items:{type:Array,default:()=>['BLOCK #148,392','0x9f3a…c2e1','finance-cc','committed 24s ago']},date:{type:String,default:()=>new Date().toISOString().slice(0,10)},variant:{type:String,default:'dateline'}});
+</script>
+<template><div class="ledger-strip" :class="`ledger-strip--${variant}`"><b>◆ {{ tag }}</b><div class="ledger-items"><span v-for="item in items" :key="item">{{ item }}</span></div><time>{{ date }}</time></div></template>
+<style scoped>.ledger-strip{height:34px;display:grid;grid-template-columns:220px 1fr auto;align-items:center;gap:18px;padding:0 30px;background:var(--ec-dark);color:var(--ec-cream-3);font:500 10px var(--ec-font-mono);letter-spacing:.04em;text-transform:uppercase;overflow:hidden}.ledger-strip b{color:var(--ec-amber)}.ledger-items{display:flex;justify-content:center;gap:0;white-space:nowrap}.ledger-items span+span:before{content:' · ';margin:0 5px}.ledger-strip time{color:var(--ec-cream-2)}@media(max-width:760px){.ledger-strip{grid-template-columns:1fr auto;padding:0 16px}.ledger-items{display:none}}</style>

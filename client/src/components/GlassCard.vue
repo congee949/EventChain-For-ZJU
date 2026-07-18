@@ -1,5 +1,4 @@
 <script setup>
-import { useGlassHighlight } from '../composables/useGlassHighlight.js';
 
 const props = defineProps({
   variant: {
@@ -17,18 +16,11 @@ const props = defineProps({
   },
 });
 
-const { elementRef } = useGlassHighlight();
-
-const classMap = {
-  dense: 'glass-dense',
-  regular: 'glass',
-  subtle: 'glass-subtle',
-};
+const classMap = { dense:'ec-card--dense', regular:'ec-card--regular', subtle:'ec-card--subtle' };
 </script>
 
 <template>
   <div
-    ref="elementRef"
     :class="[classMap[props.variant], { 'no-hover': !props.hoverable }]"
     :style="{ padding: props.padding }"
     class="glass-card"
@@ -38,14 +30,7 @@ const classMap = {
 </template>
 
 <style scoped>
-.glass-card {
-  overflow: hidden;
-}
-
-.glass-card.no-hover:hover {
-  transform: none;
-  box-shadow:
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.5),
-    var(--shadow-card);
-}
+.glass-card{overflow:hidden;background:var(--ec-card);border:1px solid var(--ec-line);border-radius:var(--ec-r-card);box-shadow:none}
+.glass-card:not(.no-hover):hover{background:var(--ec-inset)}
+.ec-card--subtle{background:var(--ec-inset)}.ec-card--dense{background:var(--ec-card-white);border-color:var(--ec-ink)}
 </style>

@@ -26,14 +26,14 @@ func setupPredictionChaincode(t *testing.T) (*shimtest.MockStub, *PredictionCont
 func mockTokenTransferSuccess() *shimtest.MockStub {
 	// Create a minimal mock stub for the token chaincode
 	// The mock will return OK for Transfer calls
-	tokenStub := shimtest.NewMockStub("token-cc", nil)
+	tokenStub := shimtest.NewMockStub("token", &MockTokenCC{})
 	return tokenStub
 }
 
 func initializePool(t *testing.T, stub *shimtest.MockStub, eventID string) {
 	// Set up mock for token chaincode
 	tokenStub := mockTokenTransferSuccess()
-	stub.MockPeerChaincode("token-cc", tokenStub, "eventchain")
+	stub.MockPeerChaincode("token", tokenStub, "eventchain")
 
 	resp := stub.MockInvoke("tx-init-"+eventID, [][]byte{
 		[]byte("PredictionContract:InitializePool"),
@@ -48,7 +48,7 @@ func TestInitializePool(t *testing.T) {
 	stub, _ := setupPredictionChaincode(t)
 
 	tokenStub := mockTokenTransferSuccess()
-	stub.MockPeerChaincode("token-cc", tokenStub, "eventchain")
+	stub.MockPeerChaincode("token", tokenStub, "eventchain")
 
 	resp := stub.MockInvoke("tx1", [][]byte{
 		[]byte("PredictionContract:InitializePool"),
@@ -81,7 +81,7 @@ func TestInitializePoolDuplicate(t *testing.T) {
 	stub, _ := setupPredictionChaincode(t)
 
 	tokenStub := mockTokenTransferSuccess()
-	stub.MockPeerChaincode("token-cc", tokenStub, "eventchain")
+	stub.MockPeerChaincode("token", tokenStub, "eventchain")
 
 	resp := stub.MockInvoke("tx1", [][]byte{
 		[]byte("PredictionContract:InitializePool"),
@@ -105,9 +105,9 @@ func TestPlaceBet(t *testing.T) {
 	stub, _ := setupPredictionChaincode(t)
 
 	// Set up mock token chaincode that returns success for Transfer
-	tokenStub := shimtest.NewMockStub("token-cc", nil)
+	tokenStub := shimtest.NewMockStub("token", &MockTokenCC{})
 	tokenStub.MockInvokeWithSignedProposal("mock", [][]byte{[]byte("init")}, nil)
-	stub.MockPeerChaincode("token-cc", tokenStub, "eventchain")
+	stub.MockPeerChaincode("token", tokenStub, "eventchain")
 
 	initializePool(t, stub, "evt001")
 
@@ -149,8 +149,8 @@ func TestPlaceBet(t *testing.T) {
 func TestPlaceBetInvalidOption(t *testing.T) {
 	stub, _ := setupPredictionChaincode(t)
 
-	tokenStub := shimtest.NewMockStub("token-cc", nil)
-	stub.MockPeerChaincode("token-cc", tokenStub, "eventchain")
+	tokenStub := shimtest.NewMockStub("token", &MockTokenCC{})
+	stub.MockPeerChaincode("token", tokenStub, "eventchain")
 
 	initializePool(t, stub, "evt001")
 
@@ -168,8 +168,8 @@ func TestPlaceBetInvalidOption(t *testing.T) {
 func TestPlaceBetInvalidAmount(t *testing.T) {
 	stub, _ := setupPredictionChaincode(t)
 
-	tokenStub := shimtest.NewMockStub("token-cc", nil)
-	stub.MockPeerChaincode("token-cc", tokenStub, "eventchain")
+	tokenStub := shimtest.NewMockStub("token", &MockTokenCC{})
+	stub.MockPeerChaincode("token", tokenStub, "eventchain")
 
 	initializePool(t, stub, "evt001")
 
@@ -187,8 +187,8 @@ func TestPlaceBetInvalidAmount(t *testing.T) {
 func TestPlaceBetNoPool(t *testing.T) {
 	stub, _ := setupPredictionChaincode(t)
 
-	tokenStub := shimtest.NewMockStub("token-cc", nil)
-	stub.MockPeerChaincode("token-cc", tokenStub, "eventchain")
+	tokenStub := shimtest.NewMockStub("token", &MockTokenCC{})
+	stub.MockPeerChaincode("token", tokenStub, "eventchain")
 
 	// Bet on event with no pool
 	resp := stub.MockInvoke("tx1", [][]byte{
@@ -204,8 +204,8 @@ func TestPlaceBetNoPool(t *testing.T) {
 func TestGetOdds(t *testing.T) {
 	stub, _ := setupPredictionChaincode(t)
 
-	tokenStub := shimtest.NewMockStub("token-cc", nil)
-	stub.MockPeerChaincode("token-cc", tokenStub, "eventchain")
+	tokenStub := shimtest.NewMockStub("token", &MockTokenCC{})
+	stub.MockPeerChaincode("token", tokenStub, "eventchain")
 
 	initializePool(t, stub, "evt001")
 
@@ -248,8 +248,8 @@ func TestGetOdds(t *testing.T) {
 func TestAMMConstantProduct(t *testing.T) {
 	stub, _ := setupPredictionChaincode(t)
 
-	tokenStub := shimtest.NewMockStub("token-cc", nil)
-	stub.MockPeerChaincode("token-cc", tokenStub, "eventchain")
+	tokenStub := shimtest.NewMockStub("token", &MockTokenCC{})
+	stub.MockPeerChaincode("token", tokenStub, "eventchain")
 
 	initializePool(t, stub, "evt001")
 
@@ -297,8 +297,8 @@ func TestSettle(t *testing.T) {
 	stub, _ := setupPredictionChaincode(t)
 
 	// Create a mock token chaincode
-	tokenStub := shimtest.NewMockStub("token-cc", nil)
-	stub.MockPeerChaincode("token-cc", tokenStub, "eventchain")
+	tokenStub := shimtest.NewMockStub("token", &MockTokenCC{})
+	stub.MockPeerChaincode("token", tokenStub, "eventchain")
 
 	initializePool(t, stub, "evt001")
 
@@ -371,8 +371,8 @@ func TestSettle(t *testing.T) {
 func TestSettleNoPool(t *testing.T) {
 	stub, _ := setupPredictionChaincode(t)
 
-	tokenStub := shimtest.NewMockStub("token-cc", nil)
-	stub.MockPeerChaincode("token-cc", tokenStub, "eventchain")
+	tokenStub := shimtest.NewMockStub("token", &MockTokenCC{})
+	stub.MockPeerChaincode("token", tokenStub, "eventchain")
 
 	resp := stub.MockInvoke("tx1", [][]byte{
 		[]byte("PredictionContract:Settle"),
@@ -385,8 +385,8 @@ func TestSettleNoPool(t *testing.T) {
 func TestSettleAlreadySettled(t *testing.T) {
 	stub, _ := setupPredictionChaincode(t)
 
-	tokenStub := shimtest.NewMockStub("token-cc", nil)
-	stub.MockPeerChaincode("token-cc", tokenStub, "eventchain")
+	tokenStub := shimtest.NewMockStub("token", &MockTokenCC{})
+	stub.MockPeerChaincode("token", tokenStub, "eventchain")
 
 	initializePool(t, stub, "evt001")
 
@@ -437,8 +437,8 @@ func TestGetUserScore(t *testing.T) {
 func TestGetUserBets(t *testing.T) {
 	stub, _ := setupPredictionChaincode(t)
 
-	tokenStub := shimtest.NewMockStub("token-cc", nil)
-	stub.MockPeerChaincode("token-cc", tokenStub, "eventchain")
+	tokenStub := shimtest.NewMockStub("token", &MockTokenCC{})
+	stub.MockPeerChaincode("token", tokenStub, "eventchain")
 
 	initializePool(t, stub, "evt001")
 	initializePool(t, stub, "evt002")
@@ -489,8 +489,8 @@ func TestGetUserBets(t *testing.T) {
 func TestMultipleSettlementsScoreAccumulation(t *testing.T) {
 	stub, _ := setupPredictionChaincode(t)
 
-	tokenStub := shimtest.NewMockStub("token-cc", nil)
-	stub.MockPeerChaincode("token-cc", tokenStub, "eventchain")
+	tokenStub := shimtest.NewMockStub("token", &MockTokenCC{})
+	stub.MockPeerChaincode("token", tokenStub, "eventchain")
 
 	// Event 1: user1 wins
 	initializePool(t, stub, "evt001")
@@ -556,8 +556,8 @@ func TestCrossChaincodeMockInvoke(t *testing.T) {
 	stub, _ := setupPredictionChaincode(t)
 
 	// Set up a mock token chaincode that returns a specific response
-	tokenStub := shimtest.NewMockStub("token-cc", nil)
-	stub.MockPeerChaincode("token-cc", tokenStub, "eventchain")
+	tokenStub := shimtest.NewMockStub("token", &MockTokenCC{})
+	stub.MockPeerChaincode("token", tokenStub, "eventchain")
 
 	initializePool(t, stub, "evt001")
 
@@ -577,8 +577,8 @@ func TestCrossChaincodeMockInvoke(t *testing.T) {
 func TestSettlementPayoutDistribution(t *testing.T) {
 	stub, _ := setupPredictionChaincode(t)
 
-	tokenStub := shimtest.NewMockStub("token-cc", nil)
-	stub.MockPeerChaincode("token-cc", tokenStub, "eventchain")
+	tokenStub := shimtest.NewMockStub("token", &MockTokenCC{})
+	stub.MockPeerChaincode("token", tokenStub, "eventchain")
 
 	initializePool(t, stub, "evt001")
 

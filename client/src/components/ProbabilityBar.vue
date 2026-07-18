@@ -1,63 +1,9 @@
 <script setup>
-import { computed } from 'vue';
-
-const props = defineProps({
-  probA: { type: Number, required: true },  // 0-1
-  labelA: { type: String, default: 'A' },
-  labelB: { type: String, default: 'B' },
-  colorA: { type: String, default: '#6366f1' },
-  colorB: { type: String, default: '#ec4899' },
-  height: { type: String, default: '32px' },
-});
-
-const pctA = computed(() => Math.round(props.probA * 100));
-const pctB = computed(() => 100 - pctA.value);
+defineProps({outcomes:{type:Array,default:()=>[]},variant:{type:String,default:'stacked'},theme:{type:String,default:'light'}});
+const pct=(item)=>Number(item.pct ?? item.probability ?? 0);
 </script>
-
-<template>
-  <div class="probability-bar" :style="{ height: props.height }">
-    <div
-      class="bar-segment bar-a"
-      :style="{
-        width: pctA + '%',
-        background: `linear-gradient(90deg, ${props.colorA}, ${props.colorA}dd)`,
-      }"
-    >
-      <span v-if="pctA >= 20" class="bar-label">{{ props.labelA }} {{ pctA }}%</span>
-    </div>
-    <div
-      class="bar-segment bar-b"
-      :style="{
-        width: pctB + '%',
-        background: `linear-gradient(90deg, ${props.colorB}dd, ${props.colorB})`,
-      }"
-    >
-      <span v-if="pctB >= 20" class="bar-label">{{ props.labelB }} {{ pctB }}%</span>
-    </div>
-  </div>
-</template>
-
-<style scoped>
-.probability-bar {
-  display: flex;
-  border-radius: 999px;
-  overflow: hidden;
-  width: 100%;
-}
-
-.bar-segment {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-  min-width: 4px;
-}
-
-.bar-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #fff;
-  white-space: nowrap;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-}
-</style>
+<template><div class="probability" :class="[`probability--${variant}`,`probability--${theme}`]">
+  <template v-if="variant==='split'"><div v-for="(o,i) in outcomes" :key="o.id||o.label" :class="`tone-${i%3}`"><span>{{ o.label }}</span><b>{{ pct(o).toFixed(1) }}%</b><i><em :style="{width:`${pct(o)}%`}"></em></i></div></template>
+  <template v-else><div class="bar"><i v-for="(o,i) in outcomes" :key="o.id||o.label" :class="`tone-${i%3}`" :style="{width:`${pct(o)}%`}"></i></div><div v-for="(o,i) in outcomes" :key="o.id||o.label" class="legend"><span><i :class="`tone-${i%3}`"></i>{{ o.label }}</span><b>{{ pct(o).toFixed(1) }}%</b></div></template>
+</div></template>
+<style scoped>.probability{font-family:var(--ec-font-body)}.probability--split{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px}.probability--split>div{padding:11px 12px;border-radius:var(--ec-r-field);background:var(--ec-inset)}.probability--split span,.probability--split b{display:block}.probability--split b{font:700 24px var(--ec-font-display);margin:3px 0}.probability--split i,.bar{display:block;height:5px;background:var(--ec-line);overflow:hidden}.probability--split em{display:block;height:100%;background:var(--ec-orange)}.probability--split .tone-1 em{background:var(--ec-amber)}.probability--split .tone-2 em{background:var(--ec-clay)}.bar{display:flex;margin-bottom:8px}.bar>i{height:100%;background:var(--ec-orange)}.bar>.tone-1{background:var(--ec-amber)}.bar>.tone-2{background:var(--ec-clay)}.legend{display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:11px}.legend span{display:flex;align-items:center;gap:6px}.legend span i{width:7px;height:7px;background:var(--ec-orange)}.legend span i.tone-1{background:var(--ec-amber)}.legend span i.tone-2{background:var(--ec-clay)}.legend b{font:700 12px var(--ec-font-mono);color:var(--ec-red)}</style>

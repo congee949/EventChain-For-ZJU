@@ -4,6 +4,10 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
+if [ -x /opt/homebrew/opt/node@22/bin/node ]; then
+  export PATH="/opt/homebrew/opt/node@22/bin:$PATH"
+fi
+
 echo "=========================================="
 echo "  EventChain — 一键启动"
 echo "=========================================="
@@ -18,10 +22,7 @@ cd "$PROJECT_DIR/fabric/network"
 # Step 2: Deploy chaincodes
 echo ""
 echo "[2/5] 部署链码..."
-./network.sh deployCC -ccn token -ccp ../chaincode/token -ccl go
-./network.sh deployCC -ccn event -ccp ../chaincode/event -ccl go
-./network.sh deployCC -ccn prediction -ccp ../chaincode/prediction -ccl go
-./network.sh deployCC -ccn ticket -ccp ../chaincode/ticket -ccl go
+./network.sh deployCCs
 
 # Step 3: Install server dependencies
 echo ""

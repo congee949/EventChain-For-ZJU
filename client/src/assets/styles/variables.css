@@ -1,45 +1,30 @@
 :root {
-  /* ---------- Brand palette ---------- */
-  --color-primary: #6366f1;
-  --color-primary-light: #818cf8;
-  --color-primary-dark: #4f46e5;
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-info: #3b82f6;
+  --ec-orange:#ff6a2b; --ec-orange-hi:#ff854e; --ec-red:#e8482c;
+  --ec-amber:#ffb224; --ec-clay:#c67a45;
+  --ec-canvas:#e7e1d6; --ec-paper:#f7f1e6; --ec-card:#fbf7ef;
+  --ec-card-white:#fff; --ec-inset:#f1eada; --ec-ink:#211913;
+  --ec-ink-2:#4a4034; --ec-muted:#6e6152; --ec-faint:#8a7d6a;
+  --ec-faint-2:#a99c87; --ec-line:#dad0be;
+  --ec-dark:#211913; --ec-dark-2:#2c2118; --ec-dark-3:#17110b;
+  --ec-dark-4:#0c0805; --ec-cream:#f3ecdd; --ec-cream-2:#c7a98a;
+  --ec-cream-3:#9c8e7a; --ec-cream-4:#b7a992;
+  --ec-open:#48843f; --ec-open-dark:#48d17a; --ec-pending:#9a6700;
+  --ec-danger:#b42318;
+  --ec-r-chip:8px; --ec-r-field:10px; --ec-r-card:14px;
+  --ec-r-panel:16px; --ec-r-shell:20px; --ec-r-pill:999px;
+  --ec-shadow-shell:0 40px 90px -30px rgba(30,20,10,.4);
+  --ec-font-display:'Saira Condensed',sans-serif;
+  --ec-font-body:'Archivo',sans-serif;
+  --ec-font-mono:'JetBrains Mono',monospace;
+  --ec-fast:140ms ease-out;
 
-  /* ---------- Neutral ---------- */
-  --color-text: #1e293b;
-  --color-text-secondary: #64748b;
-  --color-text-tertiary: #94a3b8;
-  --color-border: rgba(255, 255, 255, 0.35);
-
-  /* ---------- Glass material tokens ---------- */
-  --glass-dense-bg: rgba(255, 255, 255, 0.35);
-  --glass-dense-blur: 32px;
-  --glass-dense-saturate: 2;
-
-  --glass-bg: rgba(255, 255, 255, 0.22);
-  --glass-blur: 24px;
-  --glass-saturate: 1.8;
-
-  --glass-subtle-bg: rgba(255, 255, 255, 0.12);
-  --glass-subtle-blur: 16px;
-  --glass-subtle-saturate: 1.4;
-
-  /* ---------- Specular highlight ---------- */
-  --highlight-x: 30%;
-  --highlight-y: 20%;
-
-  /* ---------- Radius ---------- */
-  --radius-sm: 12px;
-  --radius-md: 18px;
-  --radius-lg: 24px;
-
-  /* ---------- Shadows ---------- */
-  --shadow-card: 0 8px 40px rgba(0, 0, 0, 0.06);
-  --shadow-card-hover: 0 12px 48px rgba(0, 0, 0, 0.1);
-
-  /* ---------- Transitions ---------- */
-  --transition-base: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Compatibility aliases for V2 view logic while the visual system is replaced. */
+  --color-primary:var(--ec-red); --color-primary-light:var(--ec-orange-hi);
+  --color-primary-dark:var(--ec-orange); --color-success:var(--ec-open);
+  --color-warning:var(--ec-pending); --color-danger:var(--ec-danger);
+  --color-info:var(--ec-clay); --color-text:var(--ec-ink);
+  --color-text-secondary:var(--ec-muted); --color-text-tertiary:var(--ec-faint);
+  --color-border:var(--ec-line); --radius-sm:var(--ec-r-field);
+  --radius-md:var(--ec-r-card); --radius-lg:var(--ec-r-panel);
+  --transition-base:var(--ec-fast); --shadow-card:none; --shadow-card-hover:none;
 }

@@ -45,16 +45,16 @@ createOrgMSP() {
 NodeOUs:
   Enable: true
   ClientOUIdentifier:
-    Certificate: cacerts/localhost-${2}.pem
+    Certificate: cacerts/localhost-${2}-${3}.pem
     OrganizationalUnitIdentifier: client
   PeerOUIdentifier:
-    Certificate: cacerts/localhost-${2}.pem
+    Certificate: cacerts/localhost-${2}-${3}.pem
     OrganizationalUnitIdentifier: peer
   AdminOUIdentifier:
-    Certificate: cacerts/localhost-${2}.pem
+    Certificate: cacerts/localhost-${2}-${3}.pem
     OrganizationalUnitIdentifier: admin
   OrdererOUIdentifier:
-    Certificate: cacerts/localhost-${2}.pem
+    Certificate: cacerts/localhost-${2}-${3}.pem
     OrganizationalUnitIdentifier: orderer
 EOF
 }
@@ -82,7 +82,7 @@ createPlatformOrg() {
     --caname ca-platform \
     --tls.certfiles "${CA_CERT}"
 
-  createOrgMSP "platform.eventchain.com" "${CA_PORT}"
+  createOrgMSP "platform.eventchain.com" "${CA_PORT}" "ca-platform"
 
   # Copy CA cert into org MSP
   mkdir -p "${ORG_DIR}/msp/cacerts"
@@ -180,7 +180,7 @@ createOrganizerOrg() {
     --caname ca-organizer \
     --tls.certfiles "${CA_CERT}"
 
-  createOrgMSP "organizer.eventchain.com" "${CA_PORT}"
+  createOrgMSP "organizer.eventchain.com" "${CA_PORT}" "ca-organizer"
 
   mkdir -p "${ORG_DIR}/msp/cacerts"
   cp "${CA_CERT}" "${ORG_DIR}/msp/cacerts/localhost-${CA_PORT}.pem"
@@ -276,7 +276,7 @@ createStudentOrg() {
     --caname ca-student \
     --tls.certfiles "${CA_CERT}"
 
-  createOrgMSP "student.eventchain.com" "${CA_PORT}"
+  createOrgMSP "student.eventchain.com" "${CA_PORT}" "ca-student"
 
   mkdir -p "${ORG_DIR}/msp/cacerts"
   cp "${CA_CERT}" "${ORG_DIR}/msp/cacerts/localhost-${CA_PORT}.pem"
@@ -379,16 +379,16 @@ createOrdererOrg() {
 NodeOUs:
   Enable: true
   ClientOUIdentifier:
-    Certificate: cacerts/localhost-${CA_PORT}.pem
+    Certificate: cacerts/localhost-${CA_PORT}-ca-orderer.pem
     OrganizationalUnitIdentifier: client
   PeerOUIdentifier:
-    Certificate: cacerts/localhost-${CA_PORT}.pem
+    Certificate: cacerts/localhost-${CA_PORT}-ca-orderer.pem
     OrganizationalUnitIdentifier: peer
   AdminOUIdentifier:
-    Certificate: cacerts/localhost-${CA_PORT}.pem
+    Certificate: cacerts/localhost-${CA_PORT}-ca-orderer.pem
     OrganizationalUnitIdentifier: admin
   OrdererOUIdentifier:
-    Certificate: cacerts/localhost-${CA_PORT}.pem
+    Certificate: cacerts/localhost-${CA_PORT}-ca-orderer.pem
     OrganizationalUnitIdentifier: orderer
 EOF
 

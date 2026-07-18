@@ -1,453 +1,132 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
-import { useRoute } from 'vue-router';
-import { use } from 'echarts/core';
-import { CanvasRenderer } from 'echarts/renderers';
-import { LineChart } from 'echarts/charts';
-import {
-  TitleComponent,
-  TooltipComponent,
-  GridComponent,
-  LegendComponent,
-} from 'echarts/components';
-import VChart from 'vue-echarts';
-import { ElMessage, ElInputNumber, ElSlider, ElRadioGroup, ElRadioButton } from 'element-plus';
-import { useEventStore } from '../stores/events.js';
-import { usePredictionStore } from '../stores/prediction.js';
-import { useUserStore } from '../stores/user.js';
-import { useAuthStore } from '../stores/auth.js';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { ElMessage } from 'element-plus';
+import api from '../api/index.js';
 import GlassCard from '../components/GlassCard.vue';
+import CountdownTimer from '../components/CountdownTimer.vue';
+import { formatAmount, useFinanceStore } from '../stores/finance.js';
+import { useActivityV2Store } from '../stores/activityV2.js';
+import { useAuthStore } from '../stores/auth.js';
 import ProbabilityBar from '../components/ProbabilityBar.vue';
-
-use([CanvasRenderer, LineChart, TitleComponent, TooltipComponent, GridComponent, LegendComponent]);
+import StatusPill from '../components/StatusPill.vue';
 
 const route = useRoute();
-const eventStore = useEventStore();
-const predStore = usePredictionStore();
-const userStore = useUserStore();
+const router = useRouter();
+const finance = useFinanceStore();
+const activityStore = useActivityV2Store();
 const auth = useAuthStore();
-
-const eventId = computed(() => route.params.id);
-const event = computed(() => eventStore.currentEvent);
-const odds = computed(() => predStore.odds);
-
-// Bet form — selectedOption holds the actual option name (e.g. "A队赢"),
-// not just "A"/"B", so it can be passed straight to the chaincode.
-const selectedOption = ref('');
-const betAmount = ref(50);
+const selectedOutcome = ref('');
+const amount = ref(10);
+const challengeReason = ref('');
 const submitting = ref(false);
+const market = computed(() => finance.currentMarket);
+const activity = computed(() => activityStore.activities.find((item) => item.id === market.value?.eventId));
+const category = computed(() => finance.categories.find((item) => item.id === market.value?.categoryId));
+const walletBucket = computed(() => finance.wallet?.categories?.[market.value?.categoryId]?.[market.value?.stakeBucket === 'PAID' ? 'paid' : 'bonus']);
+const marketAccepting = computed(() => market.value?.status === 'OPEN' && new Date(market.value.closeAt).getTime() > Date.now());
+const probability = (id) => ((market.value?.outcomeProbabilityBps?.[id] || 0) / 100).toFixed(1);
+const statusText = { OPEN: '预测开放', LOCKED: '已锁盘', RESULT_PROPOSED: '结果待确认', CHALLENGED: '争议仲裁中', PROVISIONAL_FINALIZED: '临时结算', FINALIZED: '已结算', PAUSED: '已暂停' };
+const probabilityOutcomes = computed(() => (market.value?.outcomes || []).map((item) => ({ ...item, pct: Number(probability(item.id)) })));
 
-onMounted(async () => {
-  await eventStore.fetchEvent(eventId.value);
-  await predStore.fetchOdds(eventId.value);
-  await predStore.fetchPool(eventId.value);
-  // Always reset to optionA when an event loads — don't keep stale selection
-  // from a previous event. Mirrors the watch(eventId) handler below.
-  if (event.value?.predictionOptions?.[0]) {
-    selectedOption.value = event.value.predictionOptions[0];
-  }
-});
+async function load(id) {
+  await Promise.all([finance.refresh(), activityStore.refresh(), finance.fetchMarket(id)]);
+  selectedOutcome.value = market.value?.outcomes?.[0]?.id || '';
+}
+onMounted(() => load(route.params.id));
+watch(() => route.params.id, (id) => id && load(id));
 
-watch(eventId, async (newId) => {
-  if (newId) {
-    await eventStore.fetchEvent(newId);
-    await predStore.fetchOdds(newId);
-    await predStore.fetchPool(newId);
-    if (event.value?.predictionOptions?.[0]) {
-      selectedOption.value = event.value.predictionOptions[0];
-    }
-  }
-});
-
-// Payout preview based on current AMM state
-const payoutPreview = computed(() => {
-  if (!predStore.pool || !betAmount.value) return 0;
-  const pool = predStore.pool;
-  const d = betAmount.value;
-
-  // Compare against the actual optionA name (selectedOption is now the option name itself)
-  const optionAName = event.value?.predictionOptions?.[0];
-  if (selectedOption.value === optionAName) {
-    const newPoolB = pool.poolB + d;
-    const newPoolA = Math.floor(pool.k / newPoolB);
-    const shares = Math.floor(pool.poolA - newPoolA);
-    return shares;
-  } else {
-    const newPoolA = pool.poolA + d;
-    const newPoolB = Math.floor(pool.k / newPoolA);
-    const shares = Math.floor(pool.poolB - newPoolB);
-    return shares;
-  }
-});
-
-async function handleBet() {
-  if (!auth.isLoggedIn) {
-    ElMessage.warning('请先登录');
-    return;
-  }
+async function place() {
+  if (!selectedOutcome.value) return ElMessage.warning('请选择预测结果');
   submitting.value = true;
   try {
-    const result = await predStore.placeBet(eventId.value, selectedOption.value, betAmount.value);
-    ElMessage.success(`下注成功！获得 ${result.shares.toFixed(2)} 份额`);
-    await userStore.refreshBalance();
-  } catch {
-    // Error handled by interceptor
-  } finally {
-    submitting.value = false;
-  }
+    await finance.placePosition(market.value.marketId, selectedOutcome.value, amount.value);
+    await finance.fetchMarket(market.value.marketId);
+    ElMessage.success('仓位已写入私有账本');
+  } finally { submitting.value = false; }
 }
-
-// ECharts config for odds history
-const chartOption = computed(() => {
-  // Use event.oddsHistory if available, otherwise generate sample points
-  const history = event.value?.oddsHistory || [];
-  const times = history.map((h) => h.time || '');
-  const probAData = history.map((h) => ((h.probA ?? 0.5) * 100).toFixed(1));
-  const probBData = history.map((h) => ((h.probB ?? 0.5) * 100).toFixed(1));
-
-  const optionA = event.value?.predictionOptions?.[0] || '选项 A';
-  const optionB = event.value?.predictionOptions?.[1] || '选项 B';
-
-  return {
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: 'rgba(255,255,255,0.85)',
-      borderColor: 'rgba(0,0,0,0.08)',
-      borderWidth: 1,
-      textStyle: { color: '#1e293b', fontSize: 13 },
-      formatter(params) {
-        let html = `<div style="font-weight:600;margin-bottom:4px">${params[0].axisValue}</div>`;
-        for (const p of params) {
-          html += `<div>${p.marker} ${p.seriesName}: <b>${p.value}%</b></div>`;
-        }
-        return html;
-      },
-    },
-    legend: {
-      data: [optionA, optionB],
-      bottom: 0,
-      textStyle: { fontSize: 13 },
-    },
-    grid: {
-      top: 20,
-      right: 20,
-      bottom: 40,
-      left: 50,
-      containLabel: false,
-    },
-    xAxis: {
-      type: 'category',
-      data: times,
-      axisLine: { lineStyle: { color: '#e2e8f0' } },
-      axisLabel: { color: '#94a3b8', fontSize: 11 },
-    },
-    yAxis: {
-      type: 'value',
-      min: 0,
-      max: 100,
-      axisLabel: { formatter: '{value}%', color: '#94a3b8', fontSize: 11 },
-      splitLine: { lineStyle: { color: '#f1f5f9' } },
-    },
-    series: [
-      {
-        name: optionA,
-        type: 'line',
-        data: probAData,
-        smooth: true,
-        symbol: 'circle',
-        symbolSize: 6,
-        lineStyle: { width: 2.5, color: '#6366f1' },
-        itemStyle: { color: '#6366f1' },
-        areaStyle: {
-          color: {
-            type: 'linear',
-            x: 0, y: 0, x2: 0, y2: 1,
-            colorStops: [
-              { offset: 0, color: 'rgba(99,102,241,0.25)' },
-              { offset: 1, color: 'rgba(99,102,241,0.02)' },
-            ],
-          },
-        },
-      },
-      {
-        name: optionB,
-        type: 'line',
-        data: probBData,
-        smooth: true,
-        symbol: 'circle',
-        symbolSize: 6,
-        lineStyle: { width: 2.5, color: '#ec4899' },
-        itemStyle: { color: '#ec4899' },
-        areaStyle: {
-          color: {
-            type: 'linear',
-            x: 0, y: 0, x2: 0, y2: 1,
-            colorStops: [
-              { offset: 0, color: 'rgba(236,72,153,0.25)' },
-              { offset: 1, color: 'rgba(236,72,153,0.02)' },
-            ],
-          },
-        },
-      },
-    ],
-  };
-});
-
-const statusLabel = {
-  CREATED: '已创建',
-  PREDICTION_OPEN: '预测中',
-  TICKET_OPEN: '购票中',
-  ONGOING: '进行中',
-  SETTLED: '已结算',
-};
+async function challenge() {
+  if (challengeReason.value.trim().length < 4) return ElMessage.warning('请填写可核验的挑战理由');
+  await api.post(`/finance/markets/${market.value.marketId}/challenge`, { reason: challengeReason.value });
+  await finance.fetchMarket(market.value.marketId);
+  ElMessage.success('挑战已提交并锁定保证金');
+}
+async function claim() {
+  await finance.claim(market.value.marketId, market.value.settlementEpoch);
+  ElMessage.success('Pending Claim 已生成，7 天后方可成熟');
+}
 </script>
 
 <template>
-  <div v-if="event" class="event-detail">
-    <!-- Header -->
-    <GlassCard class="event-header" padding="32px">
-      <div class="header-top">
-        <span class="event-type">{{ event.type }}</span>
-        <span class="status-badge glass-subtle">{{ statusLabel[event.status] || event.status }}</span>
-      </div>
-      <h1 class="event-title">{{ event.title }}</h1>
-      <div class="teams-display">
-        <span class="team team-a">{{ event.teams?.[0] }}</span>
-        <span class="vs-badge">VS</span>
-        <span class="team team-b">{{ event.teams?.[1] }}</span>
-      </div>
-      <ProbabilityBar
-        v-if="odds"
-        :prob-a="odds.probA"
-        :label-a="event.predictionOptions?.[0] || 'A'"
-        :label-b="event.predictionOptions?.[1] || 'B'"
-        height="36px"
-        style="margin-top: 20px"
-      />
+  <div v-if="market" class="event-detail">
+    <button class="back-link" @click="router.push('/')">← 返回赛事市场</button>
+    <GlassCard class="event-header" padding="32px" :hoverable="false">
+      <div class="header-top"><span>{{ category?.name || market.categoryId }}</span><StatusPill :status="market.status === 'OPEN' ? 'open' : 'closed'" :label="statusText[market.status] || market.status" /></div>
+      <p class="market-id">{{ market.marketId }}</p>
+      <h1>{{ activity?.title || market.eventId }}</h1>
+      <p class="header-copy">{{ market.stakeBucket === 'BONUS' ? '仅使用不可兑回的 B_bonus' : '使用有 A 储备的 B_paid' }} · 公开概率来自五分钟取整快照</p>
+      <div v-if="market.status === 'OPEN'" class="countdown-wrap"><span>距离锁盘</span><CountdownTimer :target-time="market.closeAt" /></div>
+      <ProbabilityBar class="probability-grid" :outcomes="probabilityOutcomes" variant="split" />
     </GlassCard>
 
     <div class="detail-grid">
-      <!-- Odds chart -->
-      <GlassCard class="chart-card" padding="24px">
-        <h2 class="card-title">概率走势</h2>
-        <VChart
-          v-if="event.oddsHistory && event.oddsHistory.length > 0"
-          :option="chartOption"
-          style="height: 320px; width: 100%"
-          autoresize
-        />
-        <p v-else class="empty-chart-text">暂无走势数据，首次下注后开始记录</p>
-      </GlassCard>
-
-      <!-- Bet panel -->
-      <GlassCard class="bet-panel" padding="24px">
-        <h2 class="card-title">下注预测</h2>
-
-        <div class="bet-options">
-          <ElRadioGroup v-model="selectedOption" size="large">
-            <ElRadioButton :value="event.predictionOptions?.[0] || 'A'">
-              {{ event.predictionOptions?.[0] || 'A' }}
-            </ElRadioButton>
-            <ElRadioButton :value="event.predictionOptions?.[1] || 'B'">
-              {{ event.predictionOptions?.[1] || 'B' }}
-            </ElRadioButton>
-          </ElRadioGroup>
-        </div>
-
-        <div class="bet-amount">
-          <label class="form-label">投注金额（浙币）</label>
-          <ElSlider v-model="betAmount" :min="1" :max="500" :step="10" show-input />
-        </div>
-
-        <div class="payout-preview glass-subtle">
-          <div class="preview-row">
-            <span class="preview-label">投注</span>
-            <span class="preview-value">{{ betAmount }} 浙币</span>
+      <section class="detail-column">
+        <GlassCard padding="24px" :hoverable="false">
+          <div class="card-heading"><div><p>PARI-MUTUEL POOL</p><h2>奖金池状态</h2></div><span>{{ market.stakeBucket }}</span></div>
+          <div class="pool-stats">
+            <div><strong>{{ formatAmount(market.displayedPool) }}</strong><small>公开池规模</small></div>
+            <div><strong>{{ formatAmount(market.marketCap) }}</strong><small>市场上限</small></div>
+            <div><strong>{{ market.participantCount || '—' }}</strong><small>参与人数</small></div>
           </div>
-          <div class="preview-row">
-            <span class="preview-label">预计份额</span>
-            <span class="preview-value highlight">{{ payoutPreview }}</span>
+          <p class="privacy-note">精确仓位、个人选择和实时流入不公开。页面不会通过排行榜暴露其他参与者。</p>
+        </GlassCard>
+
+        <GlassCard v-if="activity" padding="24px" :hoverable="false">
+          <div class="card-heading"><div><p>CONNECTED ACTIVITY</p><h2>{{ activity.title }}</h2></div><span>{{ activity.status }}</span></div>
+          <div class="activity-meta"><span>容量 {{ activity.capacity }}</span><span>申请 {{ activity.applicationCount }}</span><span>{{ new Date(activity.startsAt).toLocaleString('zh-CN') }}</span></div>
+          <button class="soft-btn" @click="router.push('/tickets')">前往票务大厅</button>
+        </GlassCard>
+
+        <GlassCard padding="24px" :hoverable="false">
+          <div class="card-heading"><div><p>SETTLEMENT SAFETY</p><h2>结算与纠错路径</h2></div></div>
+          <div class="timeline"><div><b>1</b><span>组织者提交结果和证据摘要</span></div><div><b>2</b><span>独立验证者二次确认并开启挑战期</span></div><div><b>3</b><span>争议时由仲裁者投票；否则临时结算</span></div><div><b>4</b><span>Claim 等待 7 天后成熟，期间允许暂停和更正</span></div></div>
+        </GlassCard>
+      </section>
+
+      <aside>
+        <GlassCard v-if="auth.user?.role === 'student'" class="position-panel" padding="24px" :hoverable="false">
+          <p class="panel-kicker">PRIVATE POSITION</p><h2>建立预测仓位</h2>
+          <p class="available">可用 {{ market.stakeBucket === 'PAID' ? 'B_paid' : 'B_bonus' }}：<b>{{ formatAmount(walletBucket?.available) }}</b></p>
+          <div class="outcome-buttons">
+            <button v-for="outcome in market.outcomes" :key="outcome.id" :class="{ selected: selectedOutcome === outcome.id }" @click="selectedOutcome = outcome.id"><span>{{ outcome.label }}</span><b>{{ probability(outcome.id) }}%</b></button>
           </div>
-        </div>
+          <label>投入数量</label><el-input-number v-model="amount" :min="0.000001" :precision="6" />
+          <button class="submit-btn" :disabled="!marketAccepting || submitting" @click="place">{{ submitting ? '链上确认中…' : marketAccepting ? '确认建立仓位' : market.status === 'OPEN' ? '已到锁盘时间，等待链上锁定' : '市场当前不可参与' }}</button>
+          <p class="fine-print">仓位不可转让；结算费仅在存在获胜方时收取。无人命中或市场作废时原路退款且不收费。</p>
+        </GlassCard>
 
-        <button
-          class="bet-btn"
-          :disabled="submitting || event.status !== 'PREDICTION_OPEN'"
-          @click="handleBet"
-        >
-          {{ submitting ? '提交中...' : event.status === 'PREDICTION_OPEN' ? '确认下注' : '预测未开放' }}
-        </button>
-
-        <!-- Pool info -->
-        <div v-if="predStore.pool" class="pool-info">
-          <span>总投注量: {{ predStore.pool.totalVolume }} 浙币</span>
-        </div>
-      </GlassCard>
+        <GlassCard v-else class="position-panel" padding="24px" :hoverable="false"><p class="panel-kicker">ROLE VIEW</p><h2>只读市场视图</h2><p class="fine-print">当前证书角色为 {{ auth.user?.role }}。只有 student 身份可以建立仓位或提出参与者挑战；管理动作请前往运营控制台。</p><button class="soft-btn" @click="router.push('/admin')">前往运营控制台</button></GlassCard>
+        <GlassCard v-if="market.status === 'RESULT_PROPOSED' && auth.user?.role === 'student'" class="challenge-panel" padding="24px" :hoverable="false">
+          <h3>对结果提出挑战</h3><p>提交理由摘要并锁定挑战保证金，避免无成本滥诉。</p><el-input v-model="challengeReason" type="textarea" :rows="3" placeholder="可核验的挑战理由" /><button class="danger-btn" @click="challenge">提交挑战</button>
+        </GlassCard>
+        <GlassCard v-if="market.status === 'PROVISIONAL_FINALIZED' && auth.user?.role === 'student'" class="challenge-panel" padding="24px" :hoverable="false">
+          <h3>领取待成熟收益</h3><p>当前结算 epoch {{ market.settlementEpoch }}。Claim 会先进入 7 天等待期。</p><button class="soft-btn" @click="claim">生成 Pending Claim</button>
+        </GlassCard>
+      </aside>
     </div>
   </div>
-
-  <div v-else class="loading-state">
-    <p>加载中...</p>
-  </div>
+  <div v-else class="loading-state">正在读取链上市场…</div>
 </template>
 
 <style scoped>
-.event-detail {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.event-header {
-  text-align: center;
-}
-
-.header-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.event-type {
-  font-size: 13px;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: var(--color-text-secondary);
-  letter-spacing: 0.05em;
-}
-
-.status-badge {
-  padding: 4px 14px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.event-title {
-  font-size: 28px;
-  font-weight: 800;
-}
-
-.teams-display {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  margin-top: 8px;
-  font-size: 20px;
-}
-
-.team {
-  font-weight: 700;
-}
-
-.team-a { color: var(--color-primary); }
-.team-b { color: #ec4899; }
-
-.vs-badge {
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--color-danger);
-  padding: 4px 10px;
-  border-radius: 8px;
-  background: rgba(239, 68, 68, 0.08);
-}
-
-.detail-grid {
-  display: grid;
-  grid-template-columns: 1fr 380px;
-  gap: 24px;
-}
-
-.card-title {
-  font-size: 18px;
-  font-weight: 700;
-  margin-bottom: 16px;
-}
-
-/* Bet panel */
-.bet-options {
-  margin-bottom: 20px;
-}
-
-.bet-amount {
-  margin-bottom: 20px;
-}
-
-.form-label {
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  margin-bottom: 8px;
-}
-
-.payout-preview {
-  padding: 16px;
-  margin-bottom: 16px;
-}
-
-.preview-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 4px 0;
-}
-
-.preview-label {
-  font-size: 14px;
-  color: var(--color-text-secondary);
-}
-
-.preview-value {
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.preview-value.highlight {
-  color: var(--color-primary);
-  font-size: 16px;
-}
-
-.bet-btn {
-  width: 100%;
-  padding: 14px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(135deg, var(--color-primary), #8b5cf6);
-  color: #fff;
-  font-size: 16px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all var(--transition-base);
-}
-
-.bet-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
-}
-
-.bet-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.pool-info {
-  text-align: center;
-  margin-top: 12px;
-  font-size: 13px;
-  color: var(--color-text-tertiary);
-}
-
-.empty-chart-text {
-  text-align: center;
-  padding: 80px 0;
-  color: var(--color-text-tertiary);
-  font-size: 14px;
-}
-
-.loading-state {
-  text-align: center;
-  padding: 80px 0;
-  color: var(--color-text-tertiary);
-}
+.event-detail { display: grid; gap: 20px; padding:26px 30px 42px; }.back-link { width: fit-content; border: 0; background: transparent; color: var(--ec-red); cursor: pointer; font:600 15px var(--ec-font-display);text-transform:uppercase; }
+.event-header { text-align: center; }.header-top { display: flex; justify-content: space-between; color: var(--color-text-secondary); font-size: 12px; font-weight: 700; text-transform: uppercase; }.status-badge { padding: 5px 12px; color: #087f5b; }.market-id { color: var(--color-primary); font-weight: 800; letter-spacing: .12em; font-size: 11px; margin-top: 14px; }.event-header h1 { font-size: clamp(32px,5vw,54px); letter-spacing: -.04em; margin: 5px 0 8px; }.header-copy { color: var(--color-text-secondary); }
+.countdown-wrap { display:flex;justify-content:center;align-items:center;gap:10px;margin-top:14px;color:var(--color-text-tertiary);font-size:12px; }
+.probability-grid{max-width:540px;margin:26px auto 0}
+.detail-grid { display: grid; grid-template-columns: minmax(0,1fr) 360px; gap: 20px; align-items: start; }.detail-column, aside { display: grid; gap: 20px; }.card-heading { display: flex; justify-content: space-between; align-items: start; }.card-heading p,.panel-kicker { color: var(--color-primary); font-size: 10px; font-weight: 800; letter-spacing: .16em; }.card-heading h2 { margin-top: 3px; }.card-heading > span { font-size: 11px; font-weight: 800; color: var(--color-primary); }
+.pool-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 22px; }.pool-stats div { background:var(--ec-inset); border-radius:var(--ec-r-field); padding: 15px; }.pool-stats strong,.pool-stats small { display: block; }.pool-stats strong {font:800 27px var(--ec-font-display)}.pool-stats small { color: var(--ec-faint); margin-top: 5px;font:500 9px var(--ec-font-mono);text-transform:uppercase }.privacy-note,.fine-print,.challenge-panel p { color: var(--ec-muted); font-size: 12px; line-height: 1.65; margin-top: 15px; }
+.activity-meta { display: flex; flex-wrap: wrap; gap: 14px; color:var(--ec-muted); margin: 17px 0;font:500 10px var(--ec-font-mono) }.timeline { display: grid; gap: 11px; margin-top: 18px; }.timeline div { display: grid; grid-template-columns: 28px 1fr; align-items: center; gap: 10px; }.timeline b { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background:var(--ec-ink); color:var(--ec-orange);font-family:var(--ec-font-mono) }.timeline span { color:var(--ec-ink-2); font-size: 13px; }
+.position-panel{background:var(--ec-card-white);border-color:var(--ec-ink)}.position-panel h2 { font-size: 24px; margin-top: 4px; }.available { color:var(--ec-muted); margin: 8px 0 18px; }.outcome-buttons { display: grid; gap: 8px; }.outcome-buttons button { display: flex; justify-content: space-between; border: 1px solid var(--ec-line); border-radius: 11px; padding: 12px; background:transparent; cursor: pointer; color: inherit; }.outcome-buttons button.selected { border-color:var(--ec-red);background:rgba(232,72,44,.08)}.position-panel label { display: block; margin: 18px 0 8px;font:500 10px var(--ec-font-mono);letter-spacing:.14em;text-transform:uppercase}.position-panel :deep(.el-input-number) { width: 100%; }.submit-btn,.soft-btn,.danger-btn { width: 100%; border: 0; border-radius: 11px; padding: 12px;font:700 15px var(--ec-font-display);text-transform:uppercase;cursor: pointer; margin-top: 14px; }.submit-btn { color:var(--ec-ink);background:var(--ec-orange)}.submit-btn:disabled { opacity:.45; cursor:not-allowed; }.soft-btn { color:var(--ec-cream);background:var(--ec-ink)}.danger-btn { color:var(--ec-danger);background:rgba(180,35,24,.08)}.loading-state { text-align:center;padding:100px;color:var(--ec-faint); }
+@media (max-width: 850px) { .detail-grid { grid-template-columns: 1fr; }.pool-stats { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .pool-stats { grid-template-columns: 1fr; }.event-header { padding: 22px !important; } }
 </style>

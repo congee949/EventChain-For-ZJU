@@ -85,6 +85,7 @@ services:
       - FABRIC_LOGGING_SPEC=INFO
       #- FABRIC_LOGGING_SPEC=DEBUG
       - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - DOCKER_API_VERSION=1.40
       - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=eventchain_network
       - CORE_PEER_TLS_ENABLED=true
       - CORE_PEER_PROFILE_ENABLED=false
@@ -149,6 +150,7 @@ services:
       - FABRIC_LOGGING_SPEC=INFO
       #- FABRIC_LOGGING_SPEC=DEBUG
       - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - DOCKER_API_VERSION=1.40
       - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=eventchain_network
       - CORE_PEER_TLS_ENABLED=true
       - CORE_PEER_PROFILE_ENABLED=false
@@ -213,6 +215,7 @@ services:
       - FABRIC_LOGGING_SPEC=INFO
       #- FABRIC_LOGGING_SPEC=DEBUG
       - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - DOCKER_API_VERSION=1.40
       - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=eventchain_network
       - CORE_PEER_TLS_ENABLED=true
       - CORE_PEER_PROFILE_ENABLED=false

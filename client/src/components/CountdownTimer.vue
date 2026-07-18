@@ -73,14 +73,13 @@ function pad(n) {
 }
 
 .countdown-value {
-  font-size: 16px;
-  font-weight: 700;
+  font: 700 16px var(--ec-font-mono);
   font-variant-numeric: tabular-nums;
   color: var(--color-text);
 }
 
 .countdown-label {
-  font-size: 12px;
+  font: 500 10px var(--ec-font-mono);
   color: var(--color-text-tertiary);
 }
 

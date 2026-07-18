@@ -11,6 +11,12 @@ fabric/network/organizations/peerOrganizations/
 fabric/network/organizations/ordererOrganizations/
 fabric/network/channel-artifacts/
 fabric/network/system-genesis-block/
+fabric/network/organizations/fabric-ca/*/fabric-ca-server.db
+fabric/network/organizations/fabric-ca/*/IssuerPublicKey
+fabric/network/organizations/fabric-ca/*/IssuerRevocationPublicKey
+fabric/network/organizations/fabric-ca/*/ca-cert.pem
+fabric/network/organizations/fabric-ca/*/tls-cert.pem
+fabric/network/organizations/fabric-ca/*/msp/
 
 # Server
 server/wallet/
@@ -33,3 +39,7 @@ logs/
 
 # Superpowers
 .superpowers/
+
+# Browser test artifacts
+.playwright-cli/
+output/playwright/

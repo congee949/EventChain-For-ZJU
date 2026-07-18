@@ -2,8 +2,8 @@ import axios from 'axios';
 import { ElMessage } from 'element-plus';
 
 const api = axios.create({
-  baseURL: '/api/v1',
-  timeout: 15000,
+  baseURL: '/api/v2',
+  timeout: 60000,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -38,13 +38,18 @@ api.interceptors.response.use(
         window.location.href = '/login';
       }
 
-      ElMessage.error(message);
+      if (!error.config?.silent) ElMessage.error(message);
       return Promise.reject(body);
     }
 
-    ElMessage.error('网络连接失败，请稍后重试');
+    if (!error.config?.silent) ElMessage.error('网络连接失败，请稍后重试');
     return Promise.reject(error);
   }
 );
 
 export default api;
+
+export function idempotencyHeaders(prefix = 'op') {
+  const random = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return { 'Idempotency-Key': `${prefix}:${random}` };
+}

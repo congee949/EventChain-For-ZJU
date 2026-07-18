@@ -1,0 +1,15 @@
+[
+  {
+    "name": "finance",
+    "policy": "OR('PlatformMSP.member','StudentMSP.member')",
+    "requiredPeerCount": 1,
+    "maxPeerCount": 1,
+    "blockToLive": 0,
+    "memberOnlyRead": false,
+    "memberOnlyWrite": false,
+    "endorsementPolicy": {
+      "signaturePolicy": "AND('PlatformMSP.peer','StudentMSP.peer')"
+    }
+  }
+]
+

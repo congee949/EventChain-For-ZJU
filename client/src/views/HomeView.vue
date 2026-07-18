@@ -1,299 +1,33 @@
 <script setup>
-import { onMounted, computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useEventStore } from '../stores/events.js';
-import { useUserStore } from '../stores/user.js';
-import { useAuthStore } from '../stores/auth.js';
-import GlassCard from '../components/GlassCard.vue';
+import EcButton from '../components/EcButton.vue';
 import ProbabilityBar from '../components/ProbabilityBar.vue';
-import SparkLine from '../components/SparkLine.vue';
-
-const router = useRouter();
-const eventStore = useEventStore();
-const userStore = useUserStore();
-const auth = useAuthStore();
-
-onMounted(async () => {
-  await eventStore.fetchEvents();
-  if (auth.isLoggedIn) {
-    await Promise.all([
-      userStore.fetchProfile(),
-      userStore.fetchLeaderboard(),
-    ]);
-  }
-});
-
-const hotEvents = computed(() =>
-  eventStore.events.filter((e) =>
-    ['PREDICTION_OPEN', 'ONGOING'].includes(e.status)
-  )
-);
-
-const typeEmoji = {
-  basketball: '\u{1F3C0}',
-  football: '\u26BD',
-  esports: '\u{1F3AE}',
-  badminton: '\u{1F3F8}',
-  track: '\u{1F3C3}',
-};
-
-function goToEvent(id) {
-  router.push(`/event/${id}`);
-}
+import SectionHeader from '../components/SectionHeader.vue';
+import { formatAmount, useFinanceStore } from '../stores/finance.js';
+import { useActivityV2Store } from '../stores/activityV2.js';
+const router=useRouter(); const finance=useFinanceStore(); const activityStore=useActivityV2Store();
+onMounted(()=>Promise.all([finance.refresh(),activityStore.refresh()]));
+const categoryNames=computed(()=>Object.fromEntries(finance.categories.map(x=>[x.id,x.name])));
+const marketCards=computed(()=>finance.markets.map((market)=>{const activity=activityStore.activities.find(x=>x.id===market.eventId);return{...market,title:activity?.title||market.eventId||market.marketId}}));
+const upcoming=computed(()=>activityStore.activities.filter(x=>!['CANCELLED','COMPLETED'].includes(x.status)).sort((a,b)=>new Date(a.startsAt)-new Date(b.startsAt)).slice(0,3));
+const paidTotal=computed(()=>Object.values(finance.wallet?.categories||{}).reduce((s,x)=>s+Number(x.paid?.available||0),0));
+const bonusTotal=computed(()=>Object.values(finance.wallet?.categories||{}).reduce((s,x)=>s+Number(x.bonus?.available||0),0));
+const probabilities=(market)=>market.outcomes.map(o=>({...o,pct:(market.outcomeProbabilityBps?.[o.id]||0)/100}));
+const shortTime=(value)=>new Date(value).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
 </script>
-
-<template>
-  <div class="home">
-    <!-- Hero -->
-    <section class="hero">
-      <h1 class="hero-title">EventChain</h1>
-      <p class="hero-subtitle">校园赛事预测市场 &mdash; 预测即力量</p>
-    </section>
-
-    <div class="home-grid">
-      <!-- Event cards -->
-      <section class="events-section">
-        <h2 class="section-title">热门赛事</h2>
-        <div class="events-grid">
-          <GlassCard
-            v-for="event in hotEvents"
-            :key="event.id"
-            class="event-card"
-            @click="goToEvent(event.id)"
-          >
-            <div class="event-card-header">
-              <span class="event-type-emoji">{{ typeEmoji[event.type] || '\u{1F3C6}' }}</span>
-              <span class="event-status glass-subtle">{{ event.status }}</span>
-            </div>
-            <h3 class="event-title">{{ event.title }}</h3>
-            <div class="event-teams">
-              {{ event.teams?.[0] }} <span class="vs">VS</span> {{ event.teams?.[1] }}
-            </div>
-            <ProbabilityBar
-              v-if="event.odds"
-              :prob-a="event.odds.probA"
-              :label-a="event.predictionOptions?.[0] || 'A'"
-              :label-b="event.predictionOptions?.[1] || 'B'"
-              height="28px"
-              style="margin-top: 12px"
-            />
-            <div class="event-card-footer">
-              <SparkLine
-                v-if="event.oddsHistory"
-                :data="event.oddsHistory"
-                :width="80"
-                :height="24"
-              />
-              <span class="event-volume">
-                {{ event.pool?.totalVolume || 0 }} 浙币参与
-              </span>
-            </div>
-          </GlassCard>
-        </div>
-      </section>
-
-      <!-- Sidebar -->
-      <aside class="sidebar">
-        <!-- Stats -->
-        <GlassCard v-if="auth.isLoggedIn && userStore.profile" class="sidebar-card">
-          <h3 class="sidebar-title">我的数据</h3>
-          <div class="stats-row">
-            <div class="stat">
-              <span class="stat-value">{{ userStore.profile.balance }}</span>
-              <span class="stat-label">浙币</span>
-            </div>
-            <div class="stat">
-              <span class="stat-value">{{ (userStore.profile.accuracyRate * 100).toFixed(1) }}%</span>
-              <span class="stat-label">准确率</span>
-            </div>
-            <div class="stat">
-              <span class="stat-value">{{ userStore.profile.placedBets ?? 0 }}</span>
-              <span class="stat-label">总下注</span>
-            </div>
-          </div>
-        </GlassCard>
-
-        <!-- Leaderboard -->
-        <GlassCard class="sidebar-card">
-          <h3 class="sidebar-title">预测之星</h3>
-          <ol class="leaderboard-list">
-            <li
-              v-for="(entry, idx) in userStore.leaderboard.slice(0, 10)"
-              :key="entry.userId"
-              class="leaderboard-item"
-            >
-              <span class="lb-rank">{{ idx + 1 }}</span>
-              <span class="lb-name">{{ entry.userId }}</span>
-              <span class="lb-score">{{ (entry.accuracyRate * 100).toFixed(1) }}%</span>
-            </li>
-          </ol>
-        </GlassCard>
-      </aside>
-    </div>
-  </div>
-</template>
-
+<template><div class="home">
+  <section class="hero"><div><p class="kicker">CAMPUS SPORTS · CLOSED-LOOP POINTS</p><h1>赛事、积分与活动<br>在同一条可信链路上</h1><p class="hero-copy">用 B_bonus 参与预测，用 B_paid 兑换真实服务；公开市场只展示五分钟取整快照，个人仓位保留在私有集合。</p><div class="hero-actions"><EcButton variant="ink" size="sm" @click="router.push('/tickets')">查看活动票务</EcButton><EcButton variant="outline" size="sm" @click="router.push('/wallet')">管理 A / B</EcButton></div></div>
+    <aside class="balance-panel"><p>我的封闭积分 · A</p><strong>{{ finance.aBalance }}</strong><small>A 可用</small><div><span><b>{{ formatAmount(paidTotal) }}</b><em>B_PAID</em></span><span><b>{{ formatAmount(bonusTotal) }}</b><em>B_BONUS</em></span></div></aside>
+  </section>
+  <div class="trust-strip"><span>◆ 组织级私有数据</span><span>◷ 7 天 PENDING CLAIM</span><span>⚖ 挑战与仲裁</span><span>↻ 到期与销毁规则</span></div>
+  <div class="home-grid"><section class="markets"><SectionHeader kicker="PUBLIC SNAPSHOTS" title="正在进行的预测市场" :meta="`${marketCards.length} 个市场`" :rule="true" />
+    <div class="market-list"><button v-for="(market,index) in marketCards" :key="market.marketId" class="market-row" @click="router.push(`/event/${market.marketId}`)"><span class="index">{{ String(index+1).padStart(2,'0') }}</span><span class="market-copy"><em>{{ categoryNames[market.categoryId]||market.categoryId }} · {{ market.status }}</em><b>{{ market.title }}</b><small>{{ market.stakeBucket }} · 池 {{ formatAmount(market.displayedPool) }} · 上限 {{ formatAmount(market.marketCap) }}</small></span><ProbabilityBar class="market-probability" :outcomes="probabilities(market)" /></button></div>
+    <p v-if="!finance.loading&&!marketCards.length" class="empty">当前没有开放的市场</p>
+  </section><aside class="sidebar"><section><SectionHeader kicker="UPCOMING" title="近期活动" :size="20"/><div class="upcoming"><button v-for="item in upcoming" :key="item.id" @click="router.push('/tickets')"><span><b>{{ item.title }}</b><small>{{ shortTime(item.startsAt) }}</small></span><em>{{ item.applicationCount }}/{{ item.capacity }}</em></button><p v-if="!upcoming.length" class="empty">暂无近期活动</p></div></section><section class="privacy"><i>◈</i><h3>不是“聪明钱”排行榜</h3><p>系统不会公开个人下注记录、精确余额或实时资金流。你看到的是经过取整和延迟的市场快照。</p></section></aside></div>
+</div></template>
 <style scoped>
-.hero {
-  text-align: center;
-  padding: 48px 0 32px;
-}
-
-.hero-title {
-  font-size: 48px;
-  font-weight: 800;
-  background: linear-gradient(135deg, var(--color-primary), #ec4899);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.hero-subtitle {
-  font-size: 18px;
-  color: var(--color-text-secondary);
-  margin-top: 8px;
-}
-
-.home-grid {
-  display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: 24px;
-}
-
-.section-title {
-  font-size: 20px;
-  font-weight: 700;
-  margin-bottom: 16px;
-}
-
-.events-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.event-card {
-  cursor: pointer;
-}
-
-.event-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.event-type-emoji {
-  font-size: 24px;
-}
-
-.event-status {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.event-title {
-  font-size: 16px;
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-
-.event-teams {
-  font-size: 14px;
-  color: var(--color-text-secondary);
-}
-
-.vs {
-  color: var(--color-danger);
-  font-weight: 700;
-  margin: 0 4px;
-}
-
-.event-card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 12px;
-}
-
-.event-volume {
-  font-size: 12px;
-  color: var(--color-text-tertiary);
-}
-
-/* Sidebar */
-.sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.sidebar-card {
-  padding: 20px;
-}
-
-.sidebar-title {
-  font-size: 16px;
-  font-weight: 700;
-  margin-bottom: 12px;
-}
-
-.stats-row {
-  display: flex;
-  justify-content: space-between;
-}
-
-.stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.stat-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--color-primary);
-}
-
-.stat-label {
-  font-size: 12px;
-  color: var(--color-text-tertiary);
-}
-
-.leaderboard-list {
-  list-style: none;
-  padding: 0;
-}
-
-.leaderboard-item {
-  display: flex;
-  align-items: center;
-  padding: 6px 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-}
-
-.leaderboard-item:last-child {
-  border-bottom: none;
-}
-
-.lb-rank {
-  width: 24px;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-text-tertiary);
-}
-
-.lb-name {
-  flex: 1;
-  font-size: 14px;
-}
-
-.lb-score {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-primary);
-}
+.hero{padding:36px 30px 28px;border-bottom:2px solid var(--ec-ink);display:grid;grid-template-columns:1fr 320px;gap:40px;align-items:end}.kicker{color:var(--ec-red);font:500 10px var(--ec-font-mono);letter-spacing:.2em;margin-bottom:13px}.hero h1{font-size:64px;line-height:.9;letter-spacing:-.01em}.hero-copy{color:var(--ec-ink-2);font-size:14.5px;line-height:1.75;max-width:650px;margin-top:18px}.hero-actions{display:flex;gap:10px;margin-top:20px}.balance-panel{background:var(--ec-dark);border-radius:var(--ec-r-panel);padding:24px 22px;color:var(--ec-cream)}.balance-panel p{font:500 10px var(--ec-font-mono);letter-spacing:.16em;color:var(--ec-cream-2);text-transform:uppercase}.balance-panel>strong{display:block;font:800 56px/1 var(--ec-font-display);color:var(--ec-orange);margin-top:8px}.balance-panel>small{color:var(--ec-cream-3);font:500 10px var(--ec-font-mono)}.balance-panel>div{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}.balance-panel span{background:var(--ec-dark-2);border-radius:var(--ec-r-field);padding:11px 12px}.balance-panel b,.balance-panel em{display:block}.balance-panel b{font:700 24px var(--ec-font-display)}.balance-panel em{font:500 9px var(--ec-font-mono);color:var(--ec-cream-3);font-style:normal}.trust-strip{display:flex;gap:26px;padding:12px 30px;border-bottom:1px solid var(--ec-line);color:var(--ec-muted);font:500 10px var(--ec-font-mono);white-space:nowrap;overflow:auto}.home-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px}.markets{padding:26px 30px 40px;border-right:1px solid var(--ec-line)}.market-list{margin-top:6px}.market-row{width:100%;display:grid;grid-template-columns:44px 1fr 190px;gap:18px;align-items:center;padding:18px 4px;border:0;border-bottom:1px solid var(--ec-line);background:transparent;text-align:left;cursor:pointer}.market-row:hover{background:var(--ec-inset)}.index{font:800 30px var(--ec-font-display);color:#c9bca9}.market-copy>*{display:block}.market-copy em{color:var(--ec-red);font:500 10px var(--ec-font-mono);font-style:normal;text-transform:uppercase}.market-copy b{font:700 23px/1 var(--ec-font-display);margin-top:6px}.market-copy small{color:var(--ec-muted);font:500 10px var(--ec-font-mono);margin-top:9px}.sidebar{padding:26px;display:flex;flex-direction:column;gap:24px}.upcoming{display:grid;gap:9px;margin-top:12px}.upcoming button{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px;border:1px solid var(--ec-line);border-radius:11px;background:transparent;text-align:left;cursor:pointer}.upcoming button:hover{background:var(--ec-inset)}.upcoming b,.upcoming small{display:block}.upcoming b{font:700 16px var(--ec-font-display)}.upcoming small{font:500 9px var(--ec-font-mono);color:var(--ec-faint);margin-top:4px}.upcoming em{color:var(--ec-red);font:700 11px var(--ec-font-mono);font-style:normal}.privacy{background:var(--ec-dark);border-radius:var(--ec-r-card);padding:22px;color:var(--ec-cream)}.privacy i{color:var(--ec-orange);font-size:22px;font-style:normal}.privacy h3{font-size:22px;margin:7px 0}.privacy p{color:var(--ec-cream-4);font-size:12.5px;line-height:1.65}.empty{padding:22px;text-align:center;color:var(--ec-faint);font-size:12px}
+@media(max-width:900px){.hero{grid-template-columns:1fr}.balance-panel{max-width:420px}.home-grid{grid-template-columns:1fr}.markets{border-right:0}.sidebar{display:grid;grid-template-columns:1fr 1fr}}
+@media(max-width:650px){.hero{padding:28px 18px}.hero h1{font-size:40px}.markets,.sidebar{padding:22px 16px}.market-row{grid-template-columns:34px 1fr}.market-probability{grid-column:2}.sidebar{grid-template-columns:1fr}}
 </style>

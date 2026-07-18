@@ -64,8 +64,8 @@ func (m *MockPredictionCC) Invoke(stub shim.ChaincodeStubInterface) peer.Respons
 
 func setupMockPredictionCC(stub *shimtest.MockStub, scores map[string]MockScore) {
 	mockCC := &MockPredictionCC{Scores: scores}
-	predStub := shimtest.NewMockStub("prediction-cc", mockCC)
-	stub.MockPeerChaincode("prediction-cc", predStub, "eventchain")
+	predStub := shimtest.NewMockStub("prediction", mockCC)
+	stub.MockPeerChaincode("prediction", predStub, "eventchain")
 }
 
 func TestApplyTicket(t *testing.T) {

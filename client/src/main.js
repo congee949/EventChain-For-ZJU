@@ -5,7 +5,6 @@ import 'element-plus/dist/index.css';
 import App from './App.vue';
 import router from './router/index.js';
 import './assets/styles/variables.css';
-import './assets/styles/liquid-glass.css';
 import './assets/styles/global.css';
 
 const app = createApp(App);

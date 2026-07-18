@@ -5,17 +5,35 @@ const routes = [
     path: '/',
     name: 'Home',
     component: () => import('../views/HomeView.vue'),
+    meta: { requiresAuth: true },
   },
   {
     path: '/event/:id',
     name: 'EventDetail',
     component: () => import('../views/EventDetailView.vue'),
+    meta: { requiresAuth: true },
     props: true,
   },
   {
     path: '/tickets',
     name: 'TicketHall',
     component: () => import('../views/TicketHallView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/services',
+    name: 'Services',
+    component: () => import('../views/ServicesV2View.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/activities',
+    redirect: '/tickets',
+  },
+  {
+    path: '/wallet',
+    name: 'Wallet',
+    component: () => import('../views/WalletV2View.vue'),
     meta: { requiresAuth: true },
   },
   {
@@ -28,7 +46,11 @@ const routes = [
     path: '/admin',
     name: 'Admin',
     component: () => import('../views/AdminView.vue'),
-    meta: { requiresAuth: true, requiresRole: ['organizer', 'admin'] },
+    meta: { requiresAuth: true, requiresRole: ['organizer', 'admin', 'operator', 'verifier', 'arbitrator'] },
+  },
+  {
+    path: '/operations',
+    redirect: '/admin',
   },
   {
     path: '/login',
