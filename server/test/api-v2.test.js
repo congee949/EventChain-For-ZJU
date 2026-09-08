@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { app } from '../src/app.js';
+import { validateProductionConfig } from '../src/config/index.js';
 import { asText, hashEvidence, idempotencyKey } from '../src/services/financeService.js';
 
 let server;
@@ -69,4 +70,38 @@ test('financial helpers reject weak idempotency keys and canonicalize evidence h
   const hash = hashEvidence('observable evidence');
   assert.match(hash, /^[0-9a-f]{64}$/);
   assert.equal(hashEvidence(hash.toUpperCase()), hash);
+});
+
+test('production configuration requires explicit identity protection keys', () => {
+  const original = {
+    nodeEnv: process.env.NODE_ENV,
+    lookupKey: process.env.IDENTITY_LOOKUP_KEY,
+    encryptionKey: process.env.IDENTITY_ENCRYPTION_KEY,
+  };
+  const productionConfig = {
+    jwt: { secret: 'a-production-jwt-secret-that-is-long-enough' },
+    demoMode: false,
+    identity: { demoBootstrapKey: '' },
+  };
+
+  try {
+    process.env.NODE_ENV = 'production';
+    delete process.env.IDENTITY_LOOKUP_KEY;
+    delete process.env.IDENTITY_ENCRYPTION_KEY;
+    assert.throws(
+      () => validateProductionConfig(productionConfig),
+      /IDENTITY_LOOKUP_KEY, IDENTITY_ENCRYPTION_KEY/,
+    );
+
+    process.env.IDENTITY_LOOKUP_KEY = 'a'.repeat(64);
+    process.env.IDENTITY_ENCRYPTION_KEY = 'b'.repeat(64);
+    assert.doesNotThrow(() => validateProductionConfig(productionConfig));
+  } finally {
+    if (original.nodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = original.nodeEnv;
+    if (original.lookupKey === undefined) delete process.env.IDENTITY_LOOKUP_KEY;
+    else process.env.IDENTITY_LOOKUP_KEY = original.lookupKey;
+    if (original.encryptionKey === undefined) delete process.env.IDENTITY_ENCRYPTION_KEY;
+    else process.env.IDENTITY_ENCRYPTION_KEY = original.encryptionKey;
+  }
 });

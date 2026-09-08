@@ -23,6 +23,7 @@ const labels = {
     APPLICATION_OPEN: '报名中',
     APPLICATION_CLOSED: '报名结束',
     DRAWN: '已抽签',
+    ONGOING: '进行中',
     ACTIVE: '进行中',
     COMPLETED: '已结束',
     CANCELLED: '已取消',

@@ -75,6 +75,16 @@ packageChaincode() {
   if [ "$CC_LANGUAGE" = "go" ]; then
     LANG="golang"
     echo "Vendoring Go dependencies..."
+    if ! command -v go >/dev/null 2>&1; then
+      if ! command -v docker >/dev/null 2>&1; then
+        echo "ERROR: Go chaincode packaging requires either Go or Docker"
+        exit 1
+      fi
+      export FABRIC_CCENV_IMAGE_TAG
+      FABRIC_CCENV_IMAGE_TAG="$(sed -n 's/^IMAGE_TAG=//p' "${NETWORK_DIR}/docker/.env" | head -1)"
+      export PATH="${SCRIPT_DIR}/docker-go-bin:${PATH}"
+      echo "Local Go not found; using Fabric ccenv ${FABRIC_CCENV_IMAGE_TAG:-2.5.15}..."
+    fi
     pushd "$CC_SRC_PATH" > /dev/null
     GO111MODULE=on go mod vendor
     popd > /dev/null

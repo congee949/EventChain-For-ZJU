@@ -18,6 +18,7 @@ function handleLogout(){auth.logout();router.push('/login')}
       <router-link to="/" class="brand"><Logo :size="22" /></router-link>
       <div class="nav-links">
         <router-link v-for="link in navLinks" :key="link.path" :to="link.path" class="nav-link" active-class="nav-link--active">{{ link.label }}</router-link>
+        <router-link v-if="['operator','admin'].includes(auth.user?.role)" to="/check-in" class="nav-link" active-class="nav-link--active">签到核验</router-link>
         <router-link v-if="auth.user?.role && auth.user.role!=='student'" to="/admin" class="nav-link" active-class="nav-link--active">运营台</router-link>
       </div>
       <div class="nav-right"><b>A {{ finance.aBalance }}</b><span>{{ displayName }} · {{ roleLabel(auth.user?.role) }}</span><button @click="handleLogout">退出</button></div>
