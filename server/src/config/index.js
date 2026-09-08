@@ -10,6 +10,9 @@ export default {
   demoMode: process.env.DEMO_MODE !== 'false',
   openStudentRegistration: process.env.OPEN_STUDENT_REGISTRATION === 'true',
   port: parseInt(process.env.PORT, 10) || 3000,
+  corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173')
+    .split(',').map((value) => value.trim()).filter(Boolean),
+  jsonLimit: process.env.JSON_LIMIT || '256kb',
 
   jwt: {
     secret: process.env.JWT_SECRET || 'eventchain-dev-secret',
@@ -18,8 +21,6 @@ export default {
 
   fabric: {
     channelName: process.env.FABRIC_CHANNEL || 'eventchain',
-    peerEndpoint: process.env.FABRIC_GATEWAY_PEER || 'peer0.platform.eventchain.com:7051',
-    caUrl: process.env.FABRIC_CA_URL || 'https://ca.student.eventchain.com:7054',
     chaincode: {
       event: process.env.CC_EVENT || 'event-cc',
       prediction: process.env.CC_PREDICTION || 'prediction-cc',
@@ -43,6 +44,20 @@ export default {
     pageSize: Math.min(100, Math.max(1, parseInt(process.env.CLAIM_WORKER_PAGE_SIZE, 10) || 100)),
   },
 
+  gatewayCache: {
+    ttlMs: Math.max(60_000, parseInt(process.env.GATEWAY_CACHE_TTL_MS, 10) || 600_000),
+  },
+
   walletPath: path.resolve(root, process.env.WALLET_PATH || './wallet'),
   dbPath: path.resolve(root, process.env.DB_PATH || './data/users.db'),
 };
+
+export function validateProductionConfig(currentConfig) {
+  if (process.env.NODE_ENV !== 'production') return;
+  const insecure = [];
+  if (currentConfig.jwt.secret.length < 32 || currentConfig.jwt.secret.includes('eventchain-dev-secret')) insecure.push('JWT_SECRET');
+  if (currentConfig.demoMode && (currentConfig.identity.demoBootstrapKey === 'eventchain-demo-bootstrap' || currentConfig.identity.demoBootstrapKey.startsWith('replace-with-'))) insecure.push('DEMO_BOOTSTRAP_KEY');
+  if (insecure.length) {
+    throw new Error(`生产环境拒绝使用默认密钥：${insecure.join(', ')}`);
+  }
+}

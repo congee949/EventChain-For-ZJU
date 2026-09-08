@@ -1,218 +1,267 @@
 # EventChain V2
 
-课程 Demo 版运动积分、服务兑换、预测市场与活动票务系统。A/B/P 均为封闭积分或链上仓位，不是法币、稳定币、加密货币或投资产品。
+EventChain 是《区块链技术与实践》课程大作业：一个基于 Hyperledger Fabric 的校园体育积分 Demo，把运动积分、预测市场、活动抽签和服务兑换放在同一条链路中。
 
-## V2 模型
+> A、B 和 P 都是封闭系统里的积分或仓位，不是法币、稳定币、加密货币或投资产品。本项目用于课程演示，不是生产系统。
 
-- `A`：主积分，仅在封闭系统内使用。
-- `B_paid(category)`：A 以 1:1 兑换的运动类别积分，有 A 储备，可转让、退款、到期退 A、扣 0.5% 手续费后兑回 A。
-- `B_bonus(category)`：签到、延期补偿和 Demo 发放的奖励积分，不可转让、不可兑回，90 天到期销毁。
-- `P(market,outcome,bucket)`：预测仓位。每个市场只能使用 `B_paid` 或 `B_bonus` 一种桶；默认 `B_bonus`。
+## 1. 项目结构
 
-链上只部署两个 V2 chaincode：
+    EventChain-For-ZJU/
+    ├── client/                 Vue 3 + Vite 前端
+    ├── server/                 Node.js + Express API、SQLite 登录数据
+    ├── fabric/chaincode/       Go 链码源码
+    │   ├── finance/             钱包、市场、订单、结算、挑战和 Claim
+    │   └── activity/            活动、抽签、票据、二维码和签到
+    ├── fabric/network/          Fabric 网络、通道和部署脚本
+    ├── scripts/                 重置、启动、演示数据脚本
+    ├── config/                  Fabric 配置
+    └── install-fabric.sh        下载 Fabric CLI 和 Docker 镜像
 
-- `finance`：钱包、lot/到期、市场、保证金、挑战/仲裁、7 天 Pending Claim、服务订单与赔付。
-- `activity`：活动、独立验证者 commit–reveal 抽签、私密票据、30 秒 QR 证明和签到回执。
+### 区块链链路
 
-旧 `token/event/prediction/ticket` 不再部署，`/api/v1` 固定返回 HTTP 410。
+- finance：A、B_paid、B_bonus、分类钱包、到期 lot、预测仓位、保证金、挑战/仲裁、7 天 Pending Claim、服务订单和赔付。
+- activity：活动、独立验证者 commit–reveal 抽签、私有票据、30 秒动态二维码和签到回执。
+- 钱包、lot、仓位、Claim、申请和票据写入 PlatformMSP + StudentMSP 私有数据集合；OrganizerMSP 不直接读取这些集合。
+- 旧 token/event/prediction/ticket 链码保留在源码中用于课程对照，但 V2 部署不再使用；/api/v1 固定返回 HTTP 410。
 
-## 融合后的前端
+![系统架构](eventchain-architecture.png)
 
-前端保留原信息架构，视觉已切换为暖纸张与墨色的 On-Chain Broadsheet 设计系统；所有数据和操作均已迁移到 `/api/v2`：
+## 2. 前端代码在哪里
 
-- `/`：赛事市场首页，同时显示用户 A/B 概览、公开赔率快照和近期活动。
-- `/event/:marketId`：赛事详情、N 结果概率、私有仓位、挑战和 Pending Claim。
-- `/tickets`：commit–reveal 报名、抽签状态、私密票据与 30 秒动态 QR。
-- `/services`、`/wallet`、`/me`：服务兑换、分类钱包和隐私化个人中心。
-- `/admin`：按 organizer/verifier/operator/arbitrator/admin 证书角色显示运营动作。
+前端根目录是 client/。需要修改页面文字时，优先编辑这些 Vue 文件：
 
-### 界面展示
+| 文件 | 页面 |
+|---|---|
+| client/src/views/HomeView.vue | 赛事市场首页 |
+| client/src/views/EventDetailView.vue | 单个赛事市场详情 |
+| client/src/views/TicketHallView.vue | 票务大厅 |
+| client/src/views/ServicesV2View.vue | 服务兑换 |
+| client/src/views/WalletV2View.vue | A / B 钱包 |
+| client/src/views/ProfileView.vue | 我的个人中心 |
+| client/src/views/LoginView.vue | 登录页 |
+| client/src/views/AdminView.vue | 运营台 |
 
-<table>
-  <tr>
-    <td width="50%" align="center">
-      <img src="design_handoff_eventchain_reskin/screenshots/2-market.png" alt="赛事市场" />
-      <br /><strong>赛事市场</strong>
-    </td>
-    <td width="50%" align="center">
-      <img src="design_handoff_eventchain_reskin/screenshots/3-event-detail.png" alt="赛事详情" />
-      <br /><strong>赛事详情与预测仓位</strong>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <img src="design_handoff_eventchain_reskin/screenshots/4-tickets.png" alt="活动票务大厅" />
-      <br /><strong>活动票务大厅</strong>
-    </td>
-    <td width="50%" align="center">
-      <img src="design_handoff_eventchain_reskin/screenshots/6-wallet.png" alt="A/B 钱包" />
-      <br /><strong>A/B 分类钱包</strong>
-    </td>
-  </tr>
-</table>
+公共文字和样式：
 
-### 门票抽签流程
+- client/src/components/：导航栏、按钮、卡片、状态标签、二维码等公共组件。
+- client/src/assets/styles/global.css：全局布局、响应式规则和 Element Plus 覆盖。
+- client/src/assets/styles/variables.css：颜色、字体、圆角和间距变量。
+- client/src/utils/display.js：角色、状态、积分桶和服务类型的中文显示名称。
+- client/src/router/index.js：页面路由。
+- client/src/stores/：登录、活动和财务状态。
+- client/src/api/index.js：前端请求 API 的统一入口。
+
+修改文字后，Vite 开发服务器会自动刷新；不要直接修改 dist/，它是构建产物。
+
+## 3. 运行前提
+
+推荐环境是 Windows + Docker Desktop + WSL2 Ubuntu。仓库脚本应在 WSL2 Bash 中执行，不要混用 Windows PowerShell 的路径和 WSL 内的 Fabric 证书路径。
+
+| 依赖 | 要求 |
+|---|---|
+| Docker | Docker Desktop，启用 WSL2 backend 和 Ubuntu integration |
+| Node.js | 22.x（项目支持 >=22 <25） |
+| Go | 1.21 或更高版本 |
+| Fabric CLI | Fabric 2.5.15，Fabric CA 1.5.17 |
+| 命令行工具 | Bash、Docker Compose v2、jq、curl |
+
+确认 Docker 和 Node 可用：
+
+    docker info
+    node --version
+
+首次克隆后，在仓库根目录下载当前系统架构的 Fabric 工具和镜像：
+
+    cd ~/EventChain-For-ZJU
+    ./install-fabric.sh binary docker --fabric-version 2.5.15 --ca-version 1.5.17
+    ./bin/peer version
+    ./bin/fabric-ca-client version
+    docker images | grep hyperledger/fabric
+
+不要把 macOS 的 Mach-O 二进制复制到 WSL2；file bin/peer 应显示 Linux ELF 64-bit。Peer 编译链码还需要 hyperledger/fabric-ccenv:2.5 和 hyperledger/fabric-baseos:2.5 镜像。
+
+## 4. 首次启动：清空并重建本地 Demo
+
+reset-v2.sh --yes 会删除本地账本、CA 状态、生成的身份、服务端钱包和 SQLite Demo 用户。只有首次初始化或明确要重置数据时才运行。
+
+### 终端 1：重置 Fabric 网络
+
+    cd ~/EventChain-For-ZJU
+    ./scripts/reset-v2.sh --yes
+
+脚本会依次执行网络清理、启动、创建通道和部署 V2 链码。完成后不要重复执行 createChannel 或 deployCCs。
+
+### 终端 2：启动后端
+
+    cd ~/EventChain-For-ZJU/server
+    cp .env.example .env       # 第一次运行时执行；已有 .env 可跳过
+    npm install
+    npm start
+
+看到 server listening 后，后端 API 已在 http://127.0.0.1:3000 监听。
+
+### 终端 3：写入演示数据
+
+    cd ~/EventChain-For-ZJU
+    ./scripts/seed-data.sh
+
+### 终端 4：启动前端
+
+    cd ~/EventChain-For-ZJU/client
+    npm install
+    npm run dev -- --host 127.0.0.1
+
+浏览器打开 http://localhost:5173/login。
+
+也可以使用 ./scripts/start-all.sh 一键启动网络、后端和前端，但它不会替代首次 reset-v2.sh --yes，也不会自动写入演示数据。
+
+## 5. 恢复已有账本
+
+只是重启 Docker Desktop 或退出容器时，不要运行 reset，也不要重新注册身份。先在 WSL2 中启动已有容器：
+
+    cd ~/EventChain-For-ZJU/fabric/network
+    docker compose --env-file docker/.env -f docker/docker-compose-ca.yaml up -d
+    docker compose --env-file docker/.env -f docker/docker-compose-net.yaml up -d
+
+然后按“启动后端”和“启动前端”两节运行服务。验证接口和 Peer：
+
+    curl http://127.0.0.1:3000/api/health
+    ss -ltn | grep -E '7051|9051|11051'
+
+普通停止时使用 docker compose ... stop，不要使用 network.sh down，后者会清理 volumes、证书和通道产物。
+
+## 6. 演示账号和使用流程
+
+演示数据由 scripts/seed-data.sh 创建：
+
+- 学生：3220100001–3220100005，密码均为 eventchain-student-2026。
+- 管理员：admin01 / eventchain-admin-2026。
+- 组织者：organizer01 / eventchain-organizer-2026。
+- 运营员：operator01 / eventchain-operator-2026。
+- 验证员：verifier01 / eventchain-verifier-2026。
+- 仲裁员：arb01–arb03，密码分别为 eventchain-arb01-2026–eventchain-arb03-2026。
+
+主要页面：
+
+| 地址 | 功能 |
+|---|---|
+| / | 赛事市场、公开概率快照和近期活动 |
+| /event/:marketId | 市场详情、建立仓位、挑战和领取待成熟收益 |
+| /tickets | 活动报名、抽签状态、私密票据和动态二维码 |
+| /services | 使用 B_paid 兑换场馆、器材或活动服务 |
+| /wallet | 分类钱包、兑换、兑回和转让 |
+| /me | 个人资产、隐私边界、申请和积分生命周期 |
+| /admin | 按证书角色执行创建、状态推进、结算和仲裁 |
+
+票务抽签采用验证者先提交承诺、截止后揭示种子的 commit–reveal 流程：
 
 ![门票抽签流程](eventchain-ticket-lottery.png)
 
-已移除依赖 V1 API 的旧 stores、虚构赔率历史、个人下注排行榜以及早期重复的 V2 替代页；公开页面只显示账本提供的真实快照。
-
-## 关键默认值
+## 7. 默认业务规则
 
 | 项目 | 默认值 |
 |---|---:|
 | B_paid 兑回费 | 0.5% |
 | 市场结算费 | 1%（组织者/风险准备金/销毁 = 60/30/10） |
 | B_paid / B_bonus 到期 | 365 / 90 天 |
-| 转让限额 | 500 B_paid/日、5 个收款方、24h 冷却 |
+| 转让限额 | 500 B_paid/日、最多 5 个收款方、24h 冷却 |
 | 单用户 / 风险组敞口 | 市场上限 5% / 10% |
 | 结果挑战期 | 24h |
 | Claim 可回滚期 | 7 天 |
 | Claim 批处理 | 每页 100、并发 5、16 个逻辑 escrow shard |
 | 服务取消赔付 | 默认 1.2×，最高 1.5×，必须预存保证金 |
-| 延期 B_bonus 补偿 | 3–7 天 5%，8–14 天 10%，15 天以上 15% |
 
-无胜方、无人命中或强制 void 时原额退款且不收费。错误结算只能在 fee 激活前由 3 人应急名单中的 2 人批准后替换 epoch；已成熟余额不做负数回滚。
+每个预测市场只能使用 B_paid 或 B_bonus 其中一个积分桶，默认使用 B_bonus。无胜方、无人命中或强制 void 时原额退款且不收费。
 
-## 本地运行与部署条件
+## 8. 端口和配置
 
-这是课程 Demo 的本地部署流程，不是生产部署方案。生产环境还需要 HTTPS、外部身份源、密钥/HSM、持久化备份、共享限流、监控和多节点治理。
-
-### 前置条件
-
-| 依赖 | 要求 |
-|---|---|
-| 容器运行时 | macOS/Linux 使用 OrbStack 或 Docker Desktop；Windows 使用 Docker Desktop 的 WSL2 backend |
-| Node.js | 22.x（项目声明支持 `>=22 <25`） |
-| Go | 用于编译 `finance` 和 `activity` chaincode |
-| Fabric 工具 | Fabric 2.5 CLI 与 Fabric CA Client；仓库脚本从 `fabric/network/bin` 查找命令 |
-| 命令行工具 | Bash、Docker Compose v2、`jq`、`curl` |
-
-启动前应确认 Docker 可用：
-
-```bash
-docker info
-```
-
-### 服务端口
-
-普通浏览器用户只需要访问前端入口，不需要配置 Fabric 端口。
-
-#### 用户与应用入口
+普通用户只需要访问前端；Fabric 端口由后端和部署脚本使用。
 
 | 服务 | 默认端口 | 用途 |
 |---|---:|---|
-| Vue/Vite 前端 | 5173 | 浏览器访问入口 |
-| Express API | 3000（冲突时可改为 3001） | 前端调用的 REST API |
+| Vue/Vite | 5173 | 浏览器入口 |
+| Express API | 3000 | 前端 REST API |
+| Platform / Organizer / Student Peer | 7051 / 9051 / 11051 | 后端 Gateway 连接 |
+| Orderer | 7050 | 通道和排序服务 |
+| Platform / Organizer / Student / Orderer CA | 7054 / 8054 / 9054 / 10054 | 注册和签发身份 |
+| CouchDB | 5984 / 7984 / 9984 | 本地调试数据库 |
 
-#### Fabric 基础设施
+复制 server/.env.example 为 server/.env 后，可调整：
 
-| 服务 | 端口 | 宿主机用途 |
-|---|---:|---|
-| Platform / Organizer / Student Peer | 7051 / 9051 / 11051 | 当前后端运行在宿主机，需要按用户组织连接对应 Gateway |
-| Orderer / Admin | 7050 / 7053 | 创建通道、部署或升级 chaincode 时使用 |
-| Platform / Organizer / Student / Orderer CA | 7054 / 8054 / 9054 / 10054 | 注册和签发 Fabric 身份时使用 |
-| CouchDB | 5984 / 7984 / 9984 | 仅用于本地调试，不是应用入口 |
+- PORT：Express 监听端口。
+- CORS_ORIGINS：允许访问 API 的前端来源，英文逗号分隔。
+- JSON_LIMIT：JSON 请求体大小，默认 256kb。
+- GATEWAY_CACHE_TTL_MS：闲置 Fabric Gateway 的回收时间，默认 10 分钟。
+- CLAIM_WORKER_*：待成熟收益处理任务的周期、并发和分页大小。
+- 各组织的 Peer/CA 地址和 TLS 证书路径：后端运行在宿主机时必须与 WSL2/Docker 暴露端口一致。
 
-这些端口不是给终端用户选择的业务配置。当前本地开发模式需要把 Peer 暴露给宿主机上的 Node.js 后端；如果后续把后端也容器化并加入 `eventchain_network`，Peer、Orderer、CA 和 CouchDB 都可以只留在 Docker 内网。
+如果 3000 端口被占用，后端和前端代理必须一起修改：
 
-生产部署通常只对外暴露反向代理的 `80/443`，前端和 API 由反向代理转发；Fabric 基础设施端口应由内网和防火墙隔离，不应直接暴露到公网。
+    # 后端
+    cd ~/EventChain-For-ZJU/server
+    PORT=3001 npm start
 
-如果 `3000` 已被其他程序占用，后端与前端代理必须一起改：
+    # 前端
+    cd ~/EventChain-For-ZJU/client
+    EVENTCHAIN_API_TARGET=http://127.0.0.1:3001 npm run dev -- --host 127.0.0.1
 
-```bash
-# 终端 1：后端
-cd server
-PORT=3001 npm start
+## 9. 测试和代码检查
 
-# 终端 2：前端
-cd client
-EVENTCHAIN_API_TARGET=http://127.0.0.1:3001 npm run dev -- --host 127.0.0.1
-```
+    cd ~/EventChain-For-ZJU
 
-### macOS / Linux：首次初始化
+    for d in fabric/chaincode/{token,event,prediction,ticket,finance,activity}; do
+      (cd "$d" && env -u GOROOT go test ./... && env -u GOROOT go vet ./...)
+    done
 
-`reset-v2.sh` 会删除本地 Fabric 账本、CA 状态、身份钱包和 Demo 用户。仅在首次初始化，或明确接受清空数据时运行：
+    npm test --prefix server
+    npm run build --prefix client
 
-```bash
-cd /path/to/EventChain
-./scripts/reset-v2.sh --yes
+如果 Go 报 go1.xx does not match go tool version go1.yy，说明当前 shell 的 GOROOT 指向了另一套 Go：
 
-cd fabric/network
-./network.sh up
-./network.sh createChannel
-./network.sh deployCCs
+    unset GOROOT
+    go version
+    go env GOROOT
 
-cd ../../server
-npm install
-PORT=3001 npm start
-```
+## 10. 常见问题
 
-后端启动后，在新终端写入 Demo 数据并启动前端：
+### npm error ENOENT ... /home/qkl/package.json
 
-```bash
-cd /path/to/EventChain
-./scripts/seed-data.sh
+命令是在 WSL 家目录运行的，而不是项目目录。先进入正确目录：
 
-cd client
-npm install
-EVENTCHAIN_API_TARGET=http://127.0.0.1:3001 npm run dev -- --host 127.0.0.1
-```
+    cd ~/EventChain-For-ZJU/server   # 后端
+    cd ~/EventChain-For-ZJU/client   # 前端
 
-打开 <http://127.0.0.1:5173/login>。Demo 学生账号为 `3220100001`–`3220100005`，密码均为 `eventchain-student-2026`。
+不要在 ~/ 下执行 npm install 或 npm start。
 
-### macOS / Linux：恢复已有账本
+### ECONNREFUSED 127.0.0.1:7054
 
-如果只是退出了 OrbStack/Docker Desktop，且 `fabric/network/organizations` 和 Docker volumes 仍在，不要运行 `reset-v2.sh`，也不需要重新注册身份。启动已有容器：
+后端连接不到 Platform CA。确认 Fabric CA 容器已启动、7054 端口正在监听，再启动后端：
 
-```bash
-cd /path/to/EventChain/fabric/network
-docker compose --env-file docker/.env -f docker/docker-compose-ca.yaml up -d
-docker compose --env-file docker/.env -f docker/docker-compose-net.yaml up -d
-```
+    docker ps
+    ss -ltn | grep 7054
 
-随后按上面的端口配置启动后端与前端。验证：
+### No such image: hyperledger/fabric-ccenv:2.5
 
-```bash
-curl http://127.0.0.1:3001/api/health
-lsof -nP -iTCP:7051 -iTCP:9051 -iTCP:11051 -sTCP:LISTEN
-```
+本地没有链码构建镜像。重新下载镜像后再部署：
 
-### Windows
+    cd ~/EventChain-For-ZJU
+    ./install-fabric.sh docker --fabric-version 2.5.15 --ca-version 1.5.17
 
-Windows 推荐并支持的路径是 **WSL2**，不建议直接在 CMD 或 PowerShell 中运行 Fabric 脚本。`network.sh`、证书权限、软链接和 Docker bind mounts 都按 Unix/Bash 语义编写。
+### cannot execute binary file: Exec format error
 
-1. 安装 Docker Desktop，启用 **Use the WSL 2 based engine**。
-2. 在 Docker Desktop 中为使用的 WSL 发行版开启 integration。
-3. 在 WSL2 内安装 Node.js 22、Go、`jq`、`curl` 和 Fabric 2.5 CLI。
-4. 将仓库克隆到 WSL 文件系统，例如 `~/EventChain`，避免放在 `/mnt/c` 下造成权限和 I/O 问题。
-5. 在 WSL2 Bash 中执行上面的 macOS/Linux 命令。
-6. Windows 浏览器可直接打开 <http://localhost:5173/login>。
+Fabric CLI 架构不匹配。删除本地 bin 中的错误版本，并在当前 WSL2 Ubuntu 内重新执行 install-fabric.sh binary。
 
-不要把 Fabric 网络运行在 WSL2、后端运行在 Windows PowerShell，再混用两套 `localhost` 和文件路径；这会让 TLS 证书路径与 Gateway 地址难以保持一致。
+### 登录成功，但市场/钱包请求失败
 
-### 常见启动错误
+登录数据在 SQLite，业务数据在 Fabric。检查 Peer 端口 7051、9051、11051、链码容器和后端日志。
 
-- `14 UNAVAILABLE` / `ECONNREFUSED 127.0.0.1:11051`：Student Peer 没有监听。先检查 Docker，再启动或恢复 Fabric 容器。
-- 登录接口返回 404，但 `3000` 有进程：该端口可能属于其他应用。使用 `lsof -nP -iTCP:3000 -sTCP:LISTEN` 确认，并通过 `PORT` 与 `EVENTCHAIN_API_TARGET` 成对改端口。
-- `Identity 'peer0' is already registered`：CA 数据与已有身份仍存在。若要保留账本，使用“恢复已有账本”的 Docker Compose 命令；若确定重建，才运行 `reset-v2.sh --yes`。
-- 登录成功但市场、钱包请求失败：认证只依赖 SQLite；业务数据依赖 Fabric。检查 `7051`、`9051`、`11051` 和 chaincode 容器。
+### Identity ... is already registered
 
-## 测试
+CA 中已有该身份。想保留账本时按“恢复已有账本”启动；只有确认要清空本地数据时才运行 ./scripts/reset-v2.sh --yes。
 
-```bash
-for d in fabric/chaincode/{token,event,prediction,ticket,finance,activity}; do
-  (cd "$d" && go test ./...)
-done
+## 11. 隐私和课程 Demo 边界
 
-npm test --prefix server
-npm run build --prefix client
-```
-
-## 隐私与剩余边界
-
-- CA 证书只含随机 `acct_...` 和角色属性，学号只在 SQLite 中以 HMAC 查找键和 AES-256-GCM 密文保存。
-- 钱包、lot、仓位、claim、申请和票据存于 PlatformMSP + StudentMSP PDC；OrganizerMSP 没有这些 collection。
-- 普通组织者看不到“聪明钱”账户，但 Platform/Student 组织的 peer 管理员仍能读取其 PDC。这是 Fabric 组织级隐私边界，不是对 peer 管理员的零知识隐私。
-- 签到与奖励是幂等 saga：票据核销成功而奖励超时时，重复同一证明会返回原签到回执并安全重试奖励。
-- 课程 Demo 的限额和名单不是生产级 KYC、反洗钱或内幕交易监控。若走向真实可兑价值，必须重新做法律定性、许可、税务、消费者保护、审计和密钥治理。
+- 学号只在服务端以 HMAC 查找键和 AES-256-GCM 密文保存，链上身份使用随机 acct_... 编号。
+- 公开市场只展示五分钟延迟、取整后的概率和资金快照，不展示个人下注记录、精确仓位或“聪明钱”排行榜。
+- Fabric 私有数据是组织级隐私，不是零知识证明；拥有相应 Peer 管理权限的节点管理员仍属于信任边界。
+- 课程 Demo 的限额、身份名单和密钥不等同于生产级 KYC、反洗钱、审计或消费者保护方案。

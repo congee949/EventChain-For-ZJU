@@ -1,21 +1,21 @@
 :root {
-  --ec-orange:#ff6a2b; --ec-orange-hi:#ff854e; --ec-red:#e8482c;
-  --ec-amber:#ffb224; --ec-clay:#c67a45;
-  --ec-canvas:#e7e1d6; --ec-paper:#f7f1e6; --ec-card:#fbf7ef;
-  --ec-card-white:#fff; --ec-inset:#f1eada; --ec-ink:#211913;
-  --ec-ink-2:#4a4034; --ec-muted:#6e6152; --ec-faint:#8a7d6a;
-  --ec-faint-2:#a99c87; --ec-line:#dad0be;
-  --ec-dark:#211913; --ec-dark-2:#2c2118; --ec-dark-3:#17110b;
-  --ec-dark-4:#0c0805; --ec-cream:#f3ecdd; --ec-cream-2:#c7a98a;
-  --ec-cream-3:#9c8e7a; --ec-cream-4:#b7a992;
-  --ec-open:#48843f; --ec-open-dark:#48d17a; --ec-pending:#9a6700;
-  --ec-danger:#b42318;
-  --ec-r-chip:8px; --ec-r-field:10px; --ec-r-card:14px;
-  --ec-r-panel:16px; --ec-r-shell:20px; --ec-r-pill:999px;
-  --ec-shadow-shell:0 40px 90px -30px rgba(30,20,10,.4);
-  --ec-font-display:'Saira Condensed',sans-serif;
-  --ec-font-body:'Archivo',sans-serif;
-  --ec-font-mono:'JetBrains Mono',monospace;
+  --ec-orange:#0071e3; --ec-orange-hi:#409cff; --ec-red:#0071e3;
+  --ec-amber:#0071e3; --ec-clay:#5e6a75;
+  --ec-canvas:#f5f5f7; --ec-paper:#fff; --ec-card:#fff;
+  --ec-card-white:#fff; --ec-inset:#f2f2f5; --ec-ink:#1d1d1f;
+  --ec-ink-2:#424245; --ec-muted:#6e6e73; --ec-faint:#86868b;
+  --ec-faint-2:#a1a1a6; --ec-line:#d2d2d7;
+  --ec-dark:#0b0b0f; --ec-dark-2:#1d1d1f; --ec-dark-3:#111113;
+  --ec-dark-4:#050507; --ec-cream:#f5f5f7; --ec-cream-2:#d2d2d7;
+  --ec-cream-3:#a1a1a6; --ec-cream-4:#c7c7cc;
+  --ec-open:#248a5b; --ec-open-dark:#6bd39b; --ec-pending:#6e6e73;
+  --ec-danger:#c43b3b;
+  --ec-r-chip:6px; --ec-r-field:8px; --ec-r-card:12px;
+  --ec-r-panel:14px; --ec-r-shell:18px; --ec-r-pill:999px;
+  --ec-shadow-shell:0 24px 70px -36px rgba(15,42,67,.55);
+  --ec-font-display:'Microsoft YaHei UI','PingFang SC','Noto Sans CJK SC',sans-serif;
+  --ec-font-body:'Microsoft YaHei','PingFang SC','Noto Sans CJK SC',sans-serif;
+  --ec-font-mono:'Cascadia Mono','SFMono-Regular',Consolas,monospace;
   --ec-fast:140ms ease-out;
 
   /* Compatibility aliases for V2 view logic while the visual system is replaced. */

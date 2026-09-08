@@ -11,9 +11,11 @@ let db;
 
 export function initDB() {
   const dir = path.dirname(config.dbPath);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  fs.chmodSync(dir, 0o700);
 
   db = new Database(config.dbPath);
+  fs.chmodSync(config.dbPath, 0o600);
   db.pragma('journal_mode = WAL');
 
   db.exec(`
@@ -94,27 +96,45 @@ export async function verifyPassword(plain, hash) {
 
 export function walletDir() {
   if (!fs.existsSync(config.walletPath)) {
-    fs.mkdirSync(config.walletPath, { recursive: true });
+    fs.mkdirSync(config.walletPath, { recursive: true, mode: 0o700 });
   }
+  fs.chmodSync(config.walletPath, 0o700);
   return config.walletPath;
 }
 
+function identityPath(userId) {
+  const safeId = String(userId || '');
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(safeId)) {
+    throw new Error('invalid identity id');
+  }
+  return path.join(walletDir(), `${safeId}.json`);
+}
+
 export function putIdentity(userId, mspId, certificate, privateKey) {
-  const identityPath = path.join(walletDir(), `${userId}.json`);
+  const targetPath = identityPath(userId);
+  const temporaryPath = `${targetPath}.${process.pid}.tmp`;
   const identity = {
     credentials: { certificate, privateKey },
     mspId,
     type: 'X.509',
   };
-  fs.writeFileSync(identityPath, JSON.stringify(identity, null, 2));
+  fs.writeFileSync(temporaryPath, JSON.stringify(identity, null, 2), { mode: 0o600 });
+  fs.renameSync(temporaryPath, targetPath);
+  fs.chmodSync(targetPath, 0o600);
 }
 
 export function getIdentity(userId) {
-  const identityPath = path.join(walletDir(), `${userId}.json`);
-  if (!fs.existsSync(identityPath)) return null;
-  return JSON.parse(fs.readFileSync(identityPath, 'utf-8'));
+  const targetPath = identityPath(userId);
+  if (!fs.existsSync(targetPath)) return null;
+  return JSON.parse(fs.readFileSync(targetPath, 'utf-8'));
 }
 
 export function identityExists(userId) {
-  return fs.existsSync(path.join(walletDir(), `${userId}.json`));
+  return fs.existsSync(identityPath(userId));
+}
+
+export function closeDB() {
+  if (!db) return;
+  db.close();
+  db = undefined;
 }

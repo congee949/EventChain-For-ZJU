@@ -9,6 +9,11 @@ import config from '../config/index.js';
 // Cache gateway connections per user to avoid reconnecting on every request.
 const gatewayCache = new Map();
 
+function closeCached(cached) {
+  cached.gateway.close();
+  cached.grpcClient.close();
+}
+
 function newGrpcConnection(orgMSP) {
   const orgConfig = buildConnectionProfile(orgMSP);
   const tlsCert = fs.readFileSync(orgConfig.tlsCertPath);
@@ -33,7 +38,16 @@ function newSigner(identity) {
 
 // Get or create a Gateway connection for a given user.
 export async function getGateway(userId) {
-  if (gatewayCache.has(userId)) return gatewayCache.get(userId);
+  const now = Date.now();
+  const cached = gatewayCache.get(userId);
+  if (cached && now - cached.lastUsedAt < config.gatewayCache.ttlMs) {
+    cached.lastUsedAt = now;
+    return cached;
+  }
+  if (cached) {
+    closeCached(cached);
+    gatewayCache.delete(userId);
+  }
 
   const identity = getIdentity(userId);
   if (!identity) throw Object.assign(new Error('身份未找到'), { code: 'UNAUTHORIZED' });
@@ -49,8 +63,9 @@ export async function getGateway(userId) {
     commitStatusOptions: () => ({ deadline: Date.now() + 60000 }),
   });
 
-  gatewayCache.set(userId, { gateway, grpcClient });
-  return { gateway, grpcClient };
+  const entry = { gateway, grpcClient, lastUsedAt: now };
+  gatewayCache.set(userId, entry);
+  return entry;
 }
 
 // Get a contract handle for a given chaincode.
@@ -108,8 +123,20 @@ function decodeResult(resultBytes) {
 export function closeGateway(userId) {
   const cached = gatewayCache.get(userId);
   if (cached) {
-    cached.gateway.close();
-    cached.grpcClient.close();
+    closeCached(cached);
     gatewayCache.delete(userId);
   }
 }
+
+export function closeAllGateways() {
+  for (const cached of gatewayCache.values()) closeCached(cached);
+  gatewayCache.clear();
+}
+
+const cacheSweep = setInterval(() => {
+  const now = Date.now();
+  for (const [userId, cached] of gatewayCache) {
+    if (now - cached.lastUsedAt >= config.gatewayCache.ttlMs) closeGateway(userId);
+  }
+}, Math.min(config.gatewayCache.ttlMs, 60_000));
+cacheSweep.unref();

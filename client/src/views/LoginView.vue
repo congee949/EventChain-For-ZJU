@@ -41,7 +41,7 @@ async function handleSubmit() {
       <div class="top-rule"></div>
       <div class="login-content">
       <Logo class="login-logo" :size="24" />
-      <p class="login-kicker">CLOSED-LOOP ACCOUNT</p>
+      <p class="login-kicker">封闭积分账户</p>
       <h2 class="login-title">
         欢迎回来
       </h2>
@@ -51,7 +51,7 @@ async function handleSubmit() {
 
       <form class="login-form" @submit.prevent="handleSubmit">
         <div class="form-group">
-          <label class="form-label">学号 · STUDENT ID</label>
+          <label class="form-label">学号</label>
           <input
             v-model="form.studentID"
             type="text"
@@ -62,7 +62,7 @@ async function handleSubmit() {
         </div>
 
         <div class="form-group">
-          <label class="form-label">密码 · PASSWORD</label>
+          <label class="form-label">密码</label>
           <input
             v-model="form.password"
             type="password"
@@ -130,7 +130,6 @@ async function handleSubmit() {
   font:500 10px var(--ec-font-mono);
   letter-spacing:.14em;
   color:var(--ec-muted);
-  text-transform:uppercase;
 }
 
 .form-input {
@@ -140,7 +139,7 @@ async function handleSubmit() {
   font-size: 15px;
   color: var(--ec-ink);
   border-radius:var(--ec-r-field);
-  background:#fffdf8;
+  background:#fff;
 }
 
 .form-input::placeholder {

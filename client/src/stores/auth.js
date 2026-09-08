@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import api from '../api/index.js';
+import { readStoredJSON } from '../utils/display.js';
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref(null);
@@ -11,10 +12,12 @@ export const useAuthStore = defineStore('auth', () => {
   // Restore session from localStorage on app init
   function restoreSession() {
     const savedToken = localStorage.getItem('ec_token');
-    const savedUser = localStorage.getItem('ec_user');
+    const savedUser = readStoredJSON('ec_user');
     if (savedToken && savedUser) {
       token.value = savedToken;
-      user.value = JSON.parse(savedUser);
+      user.value = savedUser;
+    } else if (savedToken) {
+      localStorage.removeItem('ec_token');
     }
   }
 

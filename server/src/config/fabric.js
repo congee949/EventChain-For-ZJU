@@ -10,14 +10,20 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const networkRoot = path.resolve(__dirname, '../../../fabric/network');
 
+function port(name, fallback) {
+  const value = Number.parseInt(process.env[name], 10);
+  return Number.isSafeInteger(value) && value > 0 && value <= 65535 ? value : fallback;
+}
+
 export function buildConnectionProfile(orgMSP) {
   const orgMap = {
     PlatformMSP: {
       mspId: 'PlatformMSP',
-      peerHost: 'localhost',
-      peerPort: 7051,
-      caHost: 'localhost',
-      caPort: 7054,
+      peerHost: process.env.FABRIC_PLATFORM_PEER_HOST || 'localhost',
+      peerPort: port('FABRIC_PLATFORM_PEER_PORT', 7051),
+      caHost: process.env.FABRIC_PLATFORM_CA_HOST || 'localhost',
+      caPort: port('FABRIC_PLATFORM_CA_PORT', 7054),
+      caTlsCertPath: path.join(networkRoot, 'organizations/fabric-ca/platform/tls-cert.pem'),
       tlsCertPath: path.join(
         networkRoot,
         'organizations/peerOrganizations/platform.eventchain.com/peers/peer0.platform.eventchain.com/tls/ca.crt'
@@ -25,10 +31,11 @@ export function buildConnectionProfile(orgMSP) {
     },
     OrganizerMSP: {
       mspId: 'OrganizerMSP',
-      peerHost: 'localhost',
-      peerPort: 9051,
-      caHost: 'localhost',
-      caPort: 8054,
+      peerHost: process.env.FABRIC_ORGANIZER_PEER_HOST || 'localhost',
+      peerPort: port('FABRIC_ORGANIZER_PEER_PORT', 9051),
+      caHost: process.env.FABRIC_ORGANIZER_CA_HOST || 'localhost',
+      caPort: port('FABRIC_ORGANIZER_CA_PORT', 8054),
+      caTlsCertPath: path.join(networkRoot, 'organizations/fabric-ca/organizer/tls-cert.pem'),
       tlsCertPath: path.join(
         networkRoot,
         'organizations/peerOrganizations/organizer.eventchain.com/peers/peer0.organizer.eventchain.com/tls/ca.crt'
@@ -36,10 +43,11 @@ export function buildConnectionProfile(orgMSP) {
     },
     StudentMSP: {
       mspId: 'StudentMSP',
-      peerHost: 'localhost',
-      peerPort: 11051,
-      caHost: 'localhost',
-      caPort: 9054,
+      peerHost: process.env.FABRIC_STUDENT_PEER_HOST || 'localhost',
+      peerPort: port('FABRIC_STUDENT_PEER_PORT', 11051),
+      caHost: process.env.FABRIC_STUDENT_CA_HOST || 'localhost',
+      caPort: port('FABRIC_STUDENT_CA_PORT', 9054),
+      caTlsCertPath: path.join(networkRoot, 'organizations/fabric-ca/student/tls-cert.pem'),
       tlsCertPath: path.join(
         networkRoot,
         'organizations/peerOrganizations/student.eventchain.com/peers/peer0.student.eventchain.com/tls/ca.crt'
@@ -47,5 +55,7 @@ export function buildConnectionProfile(orgMSP) {
     },
   };
 
-  return orgMap[orgMSP] || orgMap.StudentMSP;
+  const profile = orgMap[orgMSP];
+  if (!profile) throw new Error(`unsupported Fabric MSP: ${orgMSP}`);
+  return profile;
 }

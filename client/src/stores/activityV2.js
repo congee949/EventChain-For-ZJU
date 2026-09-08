@@ -26,10 +26,16 @@ export const useActivityV2Store = defineStore('activityV2', () => {
   }
   async function hydrateMine() { await Promise.all(activities.value.map((item) => loadMine(item.id))); }
   async function claim(activityId) {
-    const bytes = new Uint8Array(32);
-    crypto.getRandomValues(bytes);
-    const secret = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
-    localStorage.setItem(`ec_ticket_secret:${activityId}`, secret);
+    const storageKey = `ec_ticket_secret:${activityId}`;
+    let secret = localStorage.getItem(storageKey);
+    if (!secret) {
+      const bytes = new Uint8Array(32);
+      crypto.getRandomValues(bytes);
+      secret = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+      // Keep the same secret across retries. The transaction may have committed
+      // even when the browser did not receive its response.
+      localStorage.setItem(storageKey, secret);
+    }
     const result = await api.post(`/activities/${activityId}/ticket`, { secret }, { headers: idempotencyHeaders('ticket') });
     tickets.value[activityId] = result.ticket;
     return result;

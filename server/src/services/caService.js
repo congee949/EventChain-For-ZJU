@@ -1,6 +1,7 @@
 import FabricCAServices from 'fabric-ca-client';
 import { User } from 'fabric-common';
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import { buildConnectionProfile } from '../config/fabric.js';
 import { putIdentity, getIdentity } from './wallet.js';
 
@@ -13,8 +14,8 @@ function getCAClient(orgMSP) {
   const orgConfig = buildConnectionProfile(orgMSP);
   const caUrl = `https://${orgConfig.caHost}:${orgConfig.caPort}`;
   const caClient = new FabricCAServices(caUrl, {
-    trustedRoots: [],
-    verify: false, // dev only — accept self-signed CA certs
+    trustedRoots: [fs.readFileSync(orgConfig.caTlsCertPath, 'utf8')],
+    verify: true,
   });
 
   caClients[orgMSP] = caClient;
@@ -24,7 +25,8 @@ function getCAClient(orgMSP) {
 // Enroll the bootstrap admin identity for a given org CA.
 // This admin identity is used to register new users.
 export async function enrollAdmin(orgMSP) {
-  if (getIdentity(`admin-${orgMSP}`)) return getIdentity(`admin-${orgMSP}`);
+  const existing = getIdentity(`admin-${orgMSP}`);
+  if (existing) return existing;
 
   const caClient = getCAClient(orgMSP);
   const enrollment = await caClient.enroll({
@@ -59,14 +61,14 @@ export async function registerAndEnrollUser(accountId, orgMSP, role) {
 
   await caClient.register(
     {
-        affiliation: '',
-        enrollmentID: accountId,
-        enrollmentSecret: secret,
-        role: 'client',
-		attrs: [
-		  { name: 'eventchain.accountID', value: accountId, ecert: true },
-		  { name: 'eventchain.role', value: role, ecert: true },
-		],
+      affiliation: '',
+      enrollmentID: accountId,
+      enrollmentSecret: secret,
+      role: 'client',
+      attrs: [
+        { name: 'eventchain.accountID', value: accountId, ecert: true },
+        { name: 'eventchain.role', value: role, ecert: true },
+      ],
     },
     adminUser
   );

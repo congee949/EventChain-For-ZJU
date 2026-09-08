@@ -1,4 +1,5 @@
 const buckets = new Map();
+let requestsUntilSweep = 1000;
 
 // Small in-process limiter for the single-instance course demo. A distributed
 // deployment must replace this with a shared store (for example Redis).
@@ -18,10 +19,12 @@ export function rateLimit({ windowMs, max, key = (req) => req.ip }) {
       error.status = 429;
       return next(error);
     }
-    if (buckets.size > 10_000) {
+    requestsUntilSweep--;
+    if (requestsUntilSweep <= 0 || buckets.size > 10_000) {
       for (const [entryKey, entry] of buckets) {
         if (now >= entry.resetAt) buckets.delete(entryKey);
       }
+      requestsUntilSweep = 1000;
     }
     next();
   };

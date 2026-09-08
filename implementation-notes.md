@@ -11,14 +11,14 @@
 - Public self-registration is disabled by default. Course-demo identities are roster-bootstrapped into opaque Fabric account IDs; production must replace the demo bootstrap key with campus SSO or another authoritative identity source.
 - The supported local runtime is Node 22. Fabric images are pinned to 2.5.15 because the current Docker Desktop rejects the API level used by the older peer image.
 - The frontend keeps the original information architecture (`Home`, event detail, ticket hall, profile, and admin console) and adapts those views to V2 stores. The first V2-only views remain as implementation references but are no longer the primary routes.
-- The design handoff is treated as a visual contract, not source code. Its editorial tokens and presentational primitives are reimplemented as Vue SFCs while the existing V2 stores, API calls, permissions, and route contracts remain unchanged.
+- The frontend uses a Chinese campus-scoreboard visual system: white canvas, light-gray grouping, near-black text, and one blue action color. Market, ticket, and service pages share a centered single-column content flow; secondary information is placed below the primary task instead of competing in a side rail. Technical identifiers stay in protocol payloads, while user-facing roles, statuses, buckets, and offer types use Chinese labels.
 
 ## Deviations
 
 - Paid and bonus funds are not mixed in one prediction pool. Each market selects exactly one stake bucket; the default is `B_bonus`. This prevents promotional points from becoming redeemable `B_paid` through winnings.
 - The previously discussed 16 claim shards are logical private-state keys inside one PDC, not 16 collections.
 - The legacy leaderboard, synthetic odds history, and public accuracy tracking are not restored during frontend fusion because V2 deliberately does not expose private positions or smart-money activity. Pages show only authoritative public snapshots and the current user's private balances/applications.
-- Google Fonts are loaded from the public stylesheet endpoint to match the handoff typography. The CSS includes generic fallbacks, but a fully offline demo would need the three font families vendored locally.
+- The interface uses local Chinese system-font fallbacks and does not require a public font CDN, so the classroom demo remains usable offline.
 
 ## Tradeoffs
 

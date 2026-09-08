@@ -7,6 +7,6 @@
     "blockToLive": 0,
     "memberOnlyRead": false,
     "memberOnlyWrite": false,
-    "endorsementPolicy": { "signaturePolicy": "AND('PlatformMSP.member','StudentMSP.member')" }
+    "endorsementPolicy": { "signaturePolicy": "AND('PlatformMSP.peer','StudentMSP.peer')" }
   }
 ]

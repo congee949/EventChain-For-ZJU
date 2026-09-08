@@ -36,7 +36,7 @@ router.post('/:activityId/ticket', requireRole('student'), route(async (req, res
   const result = await activitySubmit(req.user.userId, 'ClaimTicket', [], {
     claim: { secret, refId: idempotencyKey(req) },
   });
-  ok(res, { ticket: result, secret }, 201);
+  ok(res, { ticket: result }, 201);
 }));
 
 router.post('/check-in/verify', requireRole('operator', 'admin'), route(async (req, res) => {

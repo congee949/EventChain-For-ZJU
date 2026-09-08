@@ -8,7 +8,7 @@ import { rateLimit } from '../middleware/rateLimit.js';
 
 const router = Router();
 
-// POST /api/v1/auth/register
+// POST /api/v2/auth/register
 router.post('/register', rateLimit({ windowMs: 15 * 60_000, max: 5 }), async (req, res, next) => {
   try {
     if (!config.openStudentRegistration) {
@@ -103,7 +103,7 @@ router.post('/bootstrap', rateLimit({ windowMs: 15 * 60_000, max: 20 }), async (
   }
 });
 
-// POST /api/v1/auth/login
+// POST /api/v2/auth/login
 // Body: { studentID, password }
 router.post('/login', rateLimit({ windowMs: 15 * 60_000, max: 10, key: (req) => `${req.ip}:${String(req.body?.studentID || '').toLowerCase()}` }), async (req, res, next) => {
   try {

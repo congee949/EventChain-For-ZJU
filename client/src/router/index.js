@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import { readStoredJSON } from '../utils/display.js';
 
 const routes = [
   {
@@ -67,7 +68,7 @@ const router = createRouter({
 // Navigation guard
 router.beforeEach((to, _from, next) => {
   const token = localStorage.getItem('ec_token');
-  const user = JSON.parse(localStorage.getItem('ec_user') || 'null');
+  const user = readStoredJSON('ec_user');
 
   if (to.meta.requiresAuth && !token) {
     return next({ name: 'Login', query: { redirect: to.fullPath } });

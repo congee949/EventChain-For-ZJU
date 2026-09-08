@@ -1,45 +1,77 @@
-# Node
+# Dependencies and package-manager caches
 node_modules/
+/package-lock.json
+.npm/
+.pnpm-store/
+.yarn/
+
+# Frontend and test build output
 dist/
+build/
+coverage/
+.vite/
+test-results/
+playwright-report/
+.playwright-cli/
+output/playwright/
+*.tsbuildinfo
+
+# Local environment files. Keep committed templates.
 .env
+.env.*
+!.env.example
 
-# Go
+# Downloaded Fabric CLI and external-builder binaries
+/bin/
+/builders/
+
+# Go build and test output
 vendor/
+*.test
+*.out
+/fabric/chaincode/token/token
+/fabric/chaincode/event/event
+/fabric/chaincode/prediction/prediction
+/fabric/chaincode/ticket/ticket
 
-# Fabric
-fabric/network/organizations/peerOrganizations/
-fabric/network/organizations/ordererOrganizations/
-fabric/network/channel-artifacts/
-fabric/network/system-genesis-block/
-fabric/network/organizations/fabric-ca/*/fabric-ca-server.db
-fabric/network/organizations/fabric-ca/*/IssuerPublicKey
-fabric/network/organizations/fabric-ca/*/IssuerRevocationPublicKey
-fabric/network/organizations/fabric-ca/*/ca-cert.pem
-fabric/network/organizations/fabric-ca/*/tls-cert.pem
-fabric/network/organizations/fabric-ca/*/msp/
+# Generated Fabric network state
+/fabric/network/organizations/peerOrganizations/
+/fabric/network/organizations/ordererOrganizations/
+/fabric/network/channel-artifacts/
+/fabric/network/system-genesis-block/
+/fabric/network/organizations/fabric-ca/*/*
+!/fabric/network/organizations/fabric-ca/*/fabric-ca-server-config.yaml
 
-# Server
-server/wallet/
-server/data/
-server/users.db
+# Server runtime state
+/server/wallet/
+/server/data/
+/server/users.db
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
 
-# IDE
+# Logs, process files and crash dumps
+*.log
+logs/
+*.pid
+*.pid.lock
+*.stackdump
+
+# Editor state
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
-# OS
+# OS metadata
 .DS_Store
 Thumbs.db
+Desktop.ini
 
-# Logs
-*.log
-logs/
-
-# Superpowers
+# Local agent/tool state
 .superpowers/
-
-# Browser test artifacts
-.playwright-cli/
-output/playwright/
+.codex/
+.claude/

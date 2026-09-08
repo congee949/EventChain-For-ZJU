@@ -41,7 +41,7 @@ type Bet struct {
 // Field semantics (these are NOT all the same thing):
 //   - PlacedBets: # of PlaceBet calls the user made (incremented in PlaceBet)
 //   - TotalBets:  # of unique events the user participated in that have been settled
-//                 (incremented in Settle, deduplicated per event)
+//     (incremented in Settle, deduplicated per event)
 //   - CorrectBets: # of those settled events where at least one of the user's bets won
 //   - AccuracyRate: CorrectBets / TotalBets
 //
@@ -58,10 +58,10 @@ type UserScore struct {
 
 // BetResult is returned after placing a bet
 type BetResult struct {
-	BetID  string `json:"betID"`
-	Option string `json:"option"`
-	Amount int64  `json:"amount"`
-	Shares int64  `json:"shares"`
+	BetID  string  `json:"betID"`
+	Option string  `json:"option"`
+	Amount int64   `json:"amount"`
+	Shares int64   `json:"shares"`
 	ProbA  float64 `json:"probA"`
 	ProbB  float64 `json:"probB"`
 }

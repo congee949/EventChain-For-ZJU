@@ -59,7 +59,7 @@ router.post('/wallet/transfer', requireRole('student'), route(async (req, res) =
   ]);
   ok(res, data, 201);
 }));
-router.post('/wallet/sweep-expired', route(async (req, res) => {
+router.post('/wallet/sweep-expired', requireRole('student'), route(async (req, res) => {
   const data = await financeSubmit(req.user.userId, 'SweepExpiredLots', [
     req.user.userId, asText(req.body.categoryId, 'categoryId'), asText(req.body.limit ?? 100, 'limit'),
   ]);
@@ -116,9 +116,9 @@ router.get('/markets/:marketId/settlements/:epoch', route(async (req, res) =>
   ok(res, await financeEvaluate(req.user.userId, 'GetSettlement', [req.params.marketId, req.params.epoch]))));
 router.get('/markets/:marketId/settlements/:epoch/claim', route(async (req, res) =>
   ok(res, await financeEvaluate(req.user.userId, 'GetClaim', [req.params.marketId, req.params.epoch, req.user.userId]))));
-router.post('/markets/:marketId/settlements/:epoch/claim', route(async (req, res) =>
+router.post('/markets/:marketId/settlements/:epoch/claim', requireRole('student'), route(async (req, res) =>
   ok(res, await financeSubmit(req.user.userId, 'ClaimOne', [req.params.marketId, req.params.epoch, req.user.userId]), 201)));
-router.post('/markets/:marketId/settlements/:epoch/mature', route(async (req, res) =>
+router.post('/markets/:marketId/settlements/:epoch/mature', requireRole('student'), route(async (req, res) =>
   ok(res, await financeSubmit(req.user.userId, 'MatureClaimOne', [req.params.marketId, req.params.epoch, req.user.userId]))));
 router.post('/markets/:marketId/settlements/:epoch/activate', requireRole('operator', 'admin'), route(async (req, res) =>
   ok(res, await financeSubmit(req.user.userId, 'ActivateSettlement', [req.params.marketId, req.params.epoch]))));

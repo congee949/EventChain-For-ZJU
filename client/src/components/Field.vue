@@ -1,3 +1,0 @@
-<script setup>defineProps({label:String,modelValue:[String,Number],type:{type:String,default:'text'},placeholder:String});defineEmits(['update:modelValue']);</script>
-<template><label class="field"><span>{{ label }}</span><input :type="type" :value="modelValue" :placeholder="placeholder" @input="$emit('update:modelValue',$event.target.value)" /></label></template>
-<style scoped>.field{display:grid;gap:7px}.field span{color:var(--ec-muted);font:500 10px var(--ec-font-mono);letter-spacing:.14em;text-transform:uppercase}.field input{width:100%;padding:11px 13px;background:#fffdf8;border:1px solid var(--ec-line);border-radius:var(--ec-r-field);outline:none}.field input:focus{border-color:var(--ec-red)}.field input::placeholder{color:var(--ec-faint-2)}</style>

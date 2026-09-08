@@ -13,14 +13,14 @@ const ERROR_MAP = {
   INVALID_CREDENTIALS: { status: 401, message: '学号或密码错误' },
   VALIDATION_ERROR: { status: 400, message: '请求参数不合法' },
   RATE_LIMITED: { status: 429, message: '请求过于频繁，请稍后再试' },
+  NOT_FOUND: { status: 404, message: '接口不存在' },
 };
 
-export function errorHandler(err, _req, res, _next) {
-  console.error('[ErrorHandler]', err);
-
+export function errorHandler(err, req, res, _next) {
   // Application-level coded errors (thrown as { code, message })
   if (err.code && ERROR_MAP[err.code]) {
     const mapped = ERROR_MAP[err.code];
+    console.warn(`[Request] ${req.method} ${req.originalUrl} -> ${mapped.status} ${err.code}`);
     return res.status(mapped.status).json({
       error: true,
       code: err.code,
@@ -34,6 +34,7 @@ export function errorHandler(err, _req, res, _next) {
     // Try to extract a known code from the chaincode error string
     for (const [code, meta] of Object.entries(ERROR_MAP)) {
       if (detail.includes(code)) {
+        console.warn(`[Fabric] ${req.method} ${req.originalUrl} -> ${meta.status} ${code}`);
         return res.status(meta.status).json({
           error: true,
           code,
@@ -43,8 +44,15 @@ export function errorHandler(err, _req, res, _next) {
     }
   }
 
+  if (err.type === 'entity.parse.failed') {
+    console.warn(`[Request] ${req.method} ${req.originalUrl} -> 400 INVALID_JSON`);
+    return res.status(400).json({ error: true, code: 'INVALID_JSON', message: '请求体不是有效的 JSON' });
+  }
+
   // Fallback
   const status = err.status || err.statusCode || 500;
+  if (status >= 500) console.error('[ErrorHandler]', err);
+  else console.warn(`[Request] ${req.method} ${req.originalUrl} -> ${status}`);
   res.status(status).json({
     error: true,
     code: 'INTERNAL_ERROR',
