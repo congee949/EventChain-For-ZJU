@@ -193,6 +193,8 @@ reset-v2.sh --yes 会删除本地账本、CA 状态、生成的身份、服务�
 - PORT：Express 监听端口。
 - CORS_ORIGINS：允许访问 API 的前端来源，英文逗号分隔。
 - JSON_LIMIT：JSON 请求体大小，默认 256kb。
+- IDENTITY_LOOKUP_KEY / IDENTITY_ENCRYPTION_KEY：本地 Demo 可留空并由 JWT_SECRET 派生；生产环境必须分别设置为独立的 64 位十六进制密钥。
+- DEMO_BOOTSTRAP_KEY：仅用于 Demo 初始化；生产环境启用 Demo 模式时必须更换默认值。
 - GATEWAY_CACHE_TTL_MS：闲置 Fabric Gateway 的回收时间，默认 10 分钟。
 - CLAIM_WORKER_*：待成熟收益处理任务的周期、并发和分页大小。
 - 各组织的 Peer/CA 地址和 TLS 证书路径：后端运行在宿主机时必须与 WSL2/Docker 暴露端口一致。

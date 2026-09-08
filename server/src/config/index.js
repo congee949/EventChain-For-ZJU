@@ -56,8 +56,10 @@ export function validateProductionConfig(currentConfig) {
   if (process.env.NODE_ENV !== 'production') return;
   const insecure = [];
   if (currentConfig.jwt.secret.length < 32 || currentConfig.jwt.secret.includes('eventchain-dev-secret')) insecure.push('JWT_SECRET');
+  if (!/^[0-9a-f]{64}$/i.test(process.env.IDENTITY_LOOKUP_KEY || '')) insecure.push('IDENTITY_LOOKUP_KEY');
+  if (!/^[0-9a-f]{64}$/i.test(process.env.IDENTITY_ENCRYPTION_KEY || '')) insecure.push('IDENTITY_ENCRYPTION_KEY');
   if (currentConfig.demoMode && (currentConfig.identity.demoBootstrapKey === 'eventchain-demo-bootstrap' || currentConfig.identity.demoBootstrapKey.startsWith('replace-with-'))) insecure.push('DEMO_BOOTSTRAP_KEY');
   if (insecure.length) {
-    throw new Error(`生产环境拒绝使用默认密钥：${insecure.join(', ')}`);
+    throw new Error(`生产环境密钥配置不安全：${insecure.join(', ')}`);
   }
 }

@@ -5,8 +5,14 @@ set -euo pipefail
 
 CURRENT_DIR="$(pwd -P)"
 IMAGE_TAG="${FABRIC_CCENV_IMAGE_TAG:-2.5.15}"
+LOCAL_UID="$(id -u)"
+LOCAL_GID="$(id -g)"
 
 exec docker run --rm \
+  --user "${LOCAL_UID}:${LOCAL_GID}" \
+  -e HOME=/tmp/go-home \
+  -e GOCACHE=/tmp/go-cache \
+  -e GOMODCACHE=/tmp/go-mod \
   -e GO111MODULE="${GO111MODULE:-on}" \
   -e GOPROXY="${GOPROXY:-https://proxy.golang.org,direct}" \
   -v "${CURRENT_DIR}:${CURRENT_DIR}" \
