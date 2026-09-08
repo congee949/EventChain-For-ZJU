@@ -40,6 +40,7 @@ EventChain 是《区块链技术与实践》课程大作业：一个基于 Hyper
 | client/src/views/ProfileView.vue | 我的个人中心 |
 | client/src/views/LoginView.vue | 登录页 |
 | client/src/views/AdminView.vue | 运营台 |
+| client/src/views/CheckInView.vue | 运营员/管理员签到扫码 |
 
 公共文字和样式：
 
@@ -61,7 +62,7 @@ EventChain 是《区块链技术与实践》课程大作业：一个基于 Hyper
 |---|---|
 | Docker | Docker Desktop，启用 WSL2 backend 和 Ubuntu integration |
 | Node.js | 22.x（项目支持 >=22 <25） |
-| Go | 1.21 或更高版本 |
+| Go | 推荐 1.21 或更高版本；未安装时部署脚本会自动使用 fabric-ccenv 中的 Go |
 | Fabric CLI | Fabric 2.5.15，Fabric CA 1.5.17 |
 | 命令行工具 | Bash、Docker Compose v2、jq、curl |
 
@@ -152,6 +153,7 @@ reset-v2.sh --yes 会删除本地账本、CA 状态、生成的身份、服务�
 | /wallet | 分类钱包、兑换、兑回和转让 |
 | /me | 个人资产、隐私边界、申请和积分生命周期 |
 | /admin | 按证书角色执行创建、状态推进、结算和仲裁 |
+| /check-in | 运营员/管理员扫描动态二维码并完成签到核验 |
 
 票务抽签采用验证者先提交承诺、截止后揭示种子的 commit–reveal 流程：
 
@@ -215,6 +217,9 @@ reset-v2.sh --yes 会删除本地账本、CA 状态、生成的身份、服务�
 
     npm test --prefix server
     npm run build --prefix client
+    npm run test:e2e --prefix client
+
+浏览器流程测试会自动启动 Vite，并用有状态的 API 替身验证“学生登录 → 建立仓位 → 报名 → 抽签后领票 → 运营员签到核验”。它验证浏览器交互与前端状态衔接，不等同于真实 Fabric 网络集成测试。首次运行前如缺少 Chromium，请执行 `cd client && npx playwright install chromium`。
 
 如果 Go 报 go1.xx does not match go tool version go1.yy，说明当前 shell 的 GOROOT 指向了另一套 Go：
 

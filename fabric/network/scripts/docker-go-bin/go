@@ -1,0 +1,15 @@
+#!/bin/bash
+# Run Go commands through Fabric's ccenv image when Go is unavailable locally.
+
+set -euo pipefail
+
+CURRENT_DIR="$(pwd -P)"
+IMAGE_TAG="${FABRIC_CCENV_IMAGE_TAG:-2.5.15}"
+
+exec docker run --rm \
+  -e GO111MODULE="${GO111MODULE:-on}" \
+  -e GOPROXY="${GOPROXY:-https://proxy.golang.org,direct}" \
+  -v "${CURRENT_DIR}:${CURRENT_DIR}" \
+  -w "${CURRENT_DIR}" \
+  "hyperledger/fabric-ccenv:${IMAGE_TAG}" \
+  go "$@"

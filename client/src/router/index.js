@@ -50,6 +50,12 @@ const routes = [
     meta: { requiresAuth: true, requiresRole: ['organizer', 'admin', 'operator', 'verifier', 'arbitrator'] },
   },
   {
+    path: '/check-in',
+    name: 'CheckIn',
+    component: () => import('../views/CheckInView.vue'),
+    meta: { requiresAuth: true, requiresRole: ['operator', 'admin'] },
+  },
+  {
     path: '/operations',
     redirect: '/admin',
   },
