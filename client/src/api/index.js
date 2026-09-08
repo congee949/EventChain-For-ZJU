@@ -1,6 +1,24 @@
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
 
+export function readableApiError(rawMessage) {
+  const message = String(rawMessage || '').trim();
+  if (/UNAVAILABLE|No connection established|ECONNREFUSED|failed to connect/i.test(message)) {
+    return '区块链网络暂不可用，请确认 Fabric 节点已经启动';
+  }
+  if (/DEADLINE_EXCEEDED|deadline exceeded|timeout/i.test(message)) {
+    return '链上确认超时，请稍后重试并先检查操作结果';
+  }
+  if (/ENDORSEMENT_POLICY_FAILURE|failed to collect enough transaction endorsements/i.test(message)) {
+    return '链上背书未通过，请确认相关组织节点均已启动';
+  }
+  return message || '请求失败';
+}
+
+function showError(message) {
+  ElMessage({ type: 'error', message, grouping: true });
+}
+
 const api = axios.create({
   baseURL: '/api/v2',
   timeout: 60000,
@@ -29,7 +47,7 @@ api.interceptors.response.use(
     const resp = error.response;
     if (resp) {
       const body = resp.data;
-      const message = body?.message || '请求失败';
+      const message = readableApiError(body?.message);
 
       // Auto-logout on 401 only if user was logged in
       if (resp.status === 401 && localStorage.getItem('ec_token')) {
@@ -38,11 +56,11 @@ api.interceptors.response.use(
         window.location.href = '/login';
       }
 
-      if (!error.config?.silent) ElMessage.error(message);
+      if (!error.config?.silent) showError(message);
       return Promise.reject(body);
     }
 
-    if (!error.config?.silent) ElMessage.error('网络连接失败，请稍后重试');
+    if (!error.config?.silent) showError('无法连接后端服务，请确认服务端已经启动');
     return Promise.reject(error);
   }
 );

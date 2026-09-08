@@ -17,6 +17,7 @@ cd "$SCRIPT_DIR"
 
 export PATH="${SCRIPT_DIR}/bin:$PATH"
 export FABRIC_CFG_PATH="${SCRIPT_DIR}/configtx"
+export COMPOSE_IGNORE_ORPHANS=true
 
 # Docker compose files
 COMPOSE_NET="-f ${SCRIPT_DIR}/docker/docker-compose-net.yaml"
@@ -154,6 +155,19 @@ generateCrypto() {
   bash "${SCRIPT_DIR}/organizations/registerEnroll.sh"
 }
 
+hasGeneratedCrypto() {
+  local required_files=(
+    "${SCRIPT_DIR}/organizations/peerOrganizations/platform.eventchain.com/peers/peer0.platform.eventchain.com/msp/signcerts/cert.pem"
+    "${SCRIPT_DIR}/organizations/peerOrganizations/organizer.eventchain.com/peers/peer0.organizer.eventchain.com/msp/signcerts/cert.pem"
+    "${SCRIPT_DIR}/organizations/peerOrganizations/student.eventchain.com/peers/peer0.student.eventchain.com/msp/signcerts/cert.pem"
+    "${SCRIPT_DIR}/organizations/ordererOrganizations/eventchain.com/orderers/orderer.eventchain.com/msp/signcerts/cert.pem"
+  )
+  local file
+  for file in "${required_files[@]}"; do
+    [ -s "$file" ] || return 1
+  done
+}
+
 # ============================================================
 # Start network (peers + orderer + CouchDB)
 # ============================================================
@@ -205,8 +219,13 @@ networkUp() {
   # Step 1: Start CAs
   startCAs
 
-  # Step 2: Generate crypto material
-  generateCrypto
+  # Step 2: Generate crypto material only on the first start. Re-registering
+  # existing identities makes a normal restart fail with Fabric CA error 74.
+  if hasGeneratedCrypto; then
+    echo "Reusing existing organization identities"
+  else
+    generateCrypto
+  fi
 
   # Step 3: Start network
   startNetwork

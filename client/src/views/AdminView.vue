@@ -6,7 +6,7 @@ import GlassCard from '../components/GlassCard.vue';
 import { formatAmount, useFinanceStore } from '../stores/finance.js';
 import { useActivityV2Store } from '../stores/activityV2.js';
 import { useAuthStore } from '../stores/auth.js';
-import { activityStatusLabel, marketStatusLabel, roleLabel } from '../utils/display.js';
+import { activityDisplayStatusLabel, activityStatusLabel, marketDisplayStatusLabel, roleLabel } from '../utils/display.js';
 
 const auth = useAuthStore();
 const finance = useFinanceStore();
@@ -24,6 +24,8 @@ const canManageMarket = computed(() => ['organizer', 'admin'].includes(role.valu
 const canVerify = computed(() => ['verifier', 'admin'].includes(role.value));
 const canOperate = computed(() => ['operator', 'admin'].includes(role.value));
 const canArbitrate = computed(() => role.value === 'arbitrator');
+const showsOutcomeField = computed(() => canCreate.value || canArbitrate.value);
+const showsActivityActions = computed(() => canCreate.value || canVerify.value);
 const selectedMarket = computed(() => finance.markets.find((item) => item.marketId === action.marketId));
 const selectedActivity = computed(() => activityStore.activities.find((item) => item.id === action.activityId));
 
@@ -238,13 +240,13 @@ async function processClaims() {
     </section>
 
     <section class="section">
-      <div class="section-heading"><div><p>状态控制</p><h2>状态、结果与结算</h2></div><span>操作前会检查当前选择及该动作所需字段</span></div>
+      <div class="section-heading"><div><p>状态控制</p><h2>状态、结果与结算</h2></div><span>只显示当前证书角色可以执行的操作</span></div>
       <div class="action-grid">
         <GlassCard v-if="canOperate" :hoverable="false"><h3>活动签到核验</h3><p class="helper">调用摄像头扫描学生的 30 秒动态二维码，核销票据并发放签到奖励。</p><router-link class="checkin-entry" to="/check-in">打开签到扫码 →</router-link></GlassCard>
         <GlassCard :hoverable="false"><h3>市场动作</h3><div class="form-stack">
-          <div class="form-field"><label>目标市场 <i class="required">*</i></label><el-select v-model="action.marketId" filterable placeholder="选择市场"><el-option v-for="m in finance.markets" :key="m.marketId" :label="`${m.marketId} · ${marketStatusLabel(m.status)}`" :value="m.marketId"/></el-select><small>开放、锁盘、确认和结算只需选择市场。</small></div>
-          <div class="form-field"><label>结果编号 <span class="conditional">提交结果/仲裁必填</span></label><el-input v-model="action.outcomeId" placeholder="如 o1；仲裁作废填 void"/><small>提交结果须填写市场内的结果编号；仲裁投票还可填写 void。</small></div>
-          <div class="form-field"><label>证据或摘要 <span class="conditional">提交结果必填</span></label><el-input v-model="action.evidence" type="textarea" :rows="2" maxlength="256" show-word-limit placeholder="填写结果依据或证据摘要"/><small>服务器会将文本转换为 SHA-256 摘要后上链。</small></div>
+          <div class="form-field"><label>目标市场 <i class="required">*</i></label><el-select v-model="action.marketId" filterable placeholder="选择市场"><el-option v-for="m in finance.markets" :key="m.marketId" :label="`${m.marketId} · ${marketDisplayStatusLabel(m)}`" :value="m.marketId"/></el-select><small>选择后执行下方与你当前职责对应的操作。</small></div>
+          <div v-if="showsOutcomeField" class="form-field"><label>结果编号 <span class="conditional">{{ canArbitrate ? '仲裁必填' : '提交结果必填' }}</span></label><el-input v-model="action.outcomeId" placeholder="如 o1；仲裁作废填 void"/><small>填写市场内的结果编号；仲裁投票还可填写 void。</small></div>
+          <div v-if="canCreate" class="form-field"><label>证据或摘要 <span class="conditional">提交结果必填</span></label><el-input v-model="action.evidence" type="textarea" :rows="2" maxlength="256" show-word-limit placeholder="填写结果依据或证据摘要"/><small>服务器会将文本转换为 SHA-256 摘要后上链。</small></div>
           <div class="button-grid">
             <el-button v-if="canManageMarket" :disabled="busy" @click="runMarketAction('open', `/finance/markets/${action.marketId}/open`)">开放</el-button>
             <el-button v-if="canManageMarket" :disabled="busy" @click="runMarketAction('lock', `/finance/markets/${action.marketId}/lock`)">锁盘</el-button>
@@ -254,10 +256,10 @@ async function processClaims() {
             <el-button v-if="canArbitrate" :disabled="busy" @click="runMarketAction('vote', `/finance/markets/${action.marketId}/vote`, { outcomeId: text(action.outcomeId) })">仲裁投票</el-button>
           </div>
         </div></GlassCard>
-        <GlassCard :hoverable="false"><h3>抽签与活动状态</h3><div class="form-stack">
-          <div class="form-field"><label>目标活动 <i class="required">*</i></label><el-select v-model="action.activityId" filterable placeholder="选择活动"><el-option v-for="a in activityStore.activities" :key="a.id" :label="`${a.title} · ${activityStatusLabel(a.status)}`" :value="a.id"/></el-select><small>承诺种子、抽签和状态更新均以此活动为目标。</small></div>
+        <GlassCard v-if="showsActivityActions" :hoverable="false"><h3>抽签与活动状态</h3><div class="form-stack">
+          <div class="form-field"><label>目标活动 <i class="required">*</i></label><el-select v-model="action.activityId" filterable placeholder="选择活动"><el-option v-for="a in activityStore.activities" :key="a.id" :label="`${a.title} · ${activityDisplayStatusLabel(a)}`" :value="a.id"/></el-select><small>选择后执行下方与你当前职责对应的操作。</small></div>
           <div class="form-field"><label>独立种子 <span class="conditional">承诺/抽签必填</span></label><el-input v-model="action.seed" show-password placeholder="输入 32–256 个字符"/><small>验证员先承诺哈希，组织者在报名截止后用完全相同的原文揭示。</small></div>
-          <div class="form-field"><label>目标状态 <span class="conditional">更新状态必填</span></label><el-select v-model="action.activityStatus" placeholder="选择目标状态"><el-option v-for="s in ['ONGOING', 'COMPLETED', 'CANCELLED']" :key="s" :label="activityStatusLabel(s)" :value="s"/></el-select><small>正常路径为“已抽签 → 进行中 → 已结束”；未结束活动也可取消。</small></div>
+          <div v-if="canCreate || role === 'admin'" class="form-field"><label>目标状态 <span class="conditional">更新状态必填</span></label><el-select v-model="action.activityStatus" placeholder="选择目标状态"><el-option v-for="s in ['ONGOING', 'COMPLETED', 'CANCELLED']" :key="s" :label="activityStatusLabel(s)" :value="s"/></el-select><small>正常路径为“已抽签 → 进行中 → 已结束”；未结束活动也可取消。</small></div>
           <div class="button-grid">
             <el-button v-if="canVerify" :disabled="busy" @click="runActivityAction('commit', () => api.post(`/activities/${action.activityId}/draw-commitment`, { seed: action.seed }))">承诺种子</el-button>
             <el-button v-if="canCreate" :disabled="busy" @click="runActivityAction('draw', () => api.post(`/activities/${action.activityId}/draw`, { seed: action.seed }))">揭示并抽签</el-button>
@@ -268,11 +270,11 @@ async function processClaims() {
       </div>
     </section>
 
-    <section class="section"><div class="section-heading"><div><p>链上对象</p><h2>当前对象</h2></div></div><div class="object-table"><div v-for="m in finance.markets" :key="m.marketId"><b>{{ m.marketId }}</b><span>{{ m.categoryId }}</span><em>{{ marketStatusLabel(m.status) }}</em><span>池 {{ formatAmount(m.displayedPool) }}</span></div><div v-for="a in activityStore.activities" :key="a.id"><b>{{ a.title }}</b><span>{{ a.categoryId }}</span><em>{{ activityStatusLabel(a.status) }}</em><span>{{ a.applicationCount }}/{{ a.capacity }}</span></div></div></section>
+    <section class="section"><div class="section-heading"><div><p>链上对象</p><h2>当前对象</h2></div></div><div class="object-table"><div v-for="m in finance.markets" :key="m.marketId"><b>{{ m.marketId }}</b><span>{{ m.categoryId }}</span><em>{{ marketDisplayStatusLabel(m) }}</em><span>池 {{ formatAmount(m.displayedPool) }}</span></div><div v-for="a in activityStore.activities" :key="a.id"><b>{{ a.title }}</b><span>{{ a.categoryId }}</span><em>{{ activityDisplayStatusLabel(a) }}</em><span>{{ a.applicationCount }}/{{ a.capacity }}</span></div></div></section>
   </div>
 </template>
 
 <style scoped>
 .admin-page{padding-bottom:48px}.admin-hero{display:flex;justify-content:space-between;align-items:end;padding:40px 8px 28px}.admin-hero p,.section-heading p{color:var(--color-primary);font-size:10px;font-weight:800;letter-spacing:.18em}.admin-hero h1{font-size:clamp(38px,6vw,60px);letter-spacing:-.05em}.admin-hero span{display:block;color:var(--color-text-secondary);margin-top:9px}.network-state{text-align:right}.network-state i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-success);margin-right:7px}.network-state span,.network-state b{font-size:11px}.overview-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:32px}.overview-grid>div{padding:18px!important}.overview-grid strong,.overview-grid span{display:block}.overview-grid strong{font-size:27px}.overview-grid span{color:var(--color-text-tertiary);font-size:11px;margin-top:4px}.section{margin-bottom:34px}.section-heading{display:flex;justify-content:space-between;align-items:end;margin-bottom:15px}.section-heading h2{font-size:23px;margin-top:3px}.section-heading>span{color:var(--color-text-tertiary);font-size:11px}.form-grid,.action-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.form-grid h3,.action-grid h3{margin-bottom:14px}.form-stack{display:grid;gap:14px}.form-field{display:grid;gap:5px}.form-field label{font-size:12px;font-weight:750;color:var(--color-text-primary)}.form-field small{min-height:30px;color:var(--color-text-tertiary);font-size:10px;line-height:1.5}.required{color:var(--ec-red);font-style:normal}.optional,.conditional{display:inline-block;margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--ec-inset);color:var(--color-text-tertiary);font-size:9px;font-weight:600;vertical-align:1px}.conditional{color:var(--color-primary)}.form-stack :deep(.el-date-editor),.form-stack :deep(.el-input-number),.form-stack :deep(.el-select){width:100%}.button-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.helper{color:var(--color-text-secondary);font-size:12px;line-height:1.6;margin-bottom:16px}.checkin-entry{display:inline-flex;padding:10px 14px;border-radius:10px;background:var(--ec-red);color:#fff;text-decoration:none;font:700 14px var(--ec-font-display)}.checkin-entry:hover{color:#fff;background:var(--ec-orange-hi)}pre{max-height:230px;background:rgba(15,23,42,.06);padding:12px;border-radius:10px;margin-top:12px}.object-table{display:grid;gap:7px}.object-table>div{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px;padding:12px 15px;border-radius:11px;background:rgba(255,255,255,.23);font-size:12px}.object-table em{font-style:normal;color:#087f5b;font-weight:700}.object-table span{color:var(--color-text-secondary)}@media(max-width:980px){.form-grid,.action-grid{grid-template-columns:1fr 1fr}.overview-grid{grid-template-columns:1fr 1fr}}@media(max-width:650px){.admin-hero{align-items:start}.network-state{display:none}.form-grid,.action-grid{grid-template-columns:1fr}.object-table>div{grid-template-columns:1fr 1fr}}
-.admin-page{padding:0 30px 48px}.admin-hero{padding-left:0;padding-right:0;border-bottom:2px solid var(--ec-ink);margin-bottom:24px}.overview-grid>div,.form-grid>div,.action-grid>div{background:var(--ec-card);border-color:var(--ec-line)}.overview-grid strong{font-family:var(--ec-font-display)}.object-table>div{background:var(--ec-inset);border-radius:var(--ec-r-field)}@media(max-width:650px){.admin-page{padding:0 16px 40px}.section-heading>span{max-width:48%;text-align:right}}
+.admin-page{padding:0 30px 48px}.admin-hero{padding-left:0;padding-right:0;border-bottom:2px solid var(--ec-ink);margin-bottom:24px}.overview-grid>div,.form-grid>div,.action-grid>div{background:var(--ec-card);border-color:var(--ec-line)}.overview-grid strong{font-family:var(--ec-font-display)}.action-grid{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}.object-table>div{background:var(--ec-inset);border-radius:var(--ec-r-field)}@media(max-width:800px){.admin-hero{align-items:start}.network-state{display:none}.form-grid,.action-grid{grid-template-columns:1fr}}@media(max-width:650px){.admin-page{padding:0 16px 40px}.section-heading>span{max-width:48%;text-align:right}}
 </style>

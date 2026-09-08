@@ -1,8 +1,6 @@
 # fabric/network/docker/docker-compose-ca.yaml
 # EventChain Fabric network — Certificate Authorities for all orgs
 
-version: '3.7'
-
 networks:
   eventchain_network:
     name: eventchain_network

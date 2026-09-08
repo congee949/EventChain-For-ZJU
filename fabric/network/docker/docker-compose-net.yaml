@@ -1,8 +1,6 @@
 # fabric/network/docker/docker-compose-net.yaml
 # EventChain Fabric network — peers, orderer, CouchDB instances
 
-version: '3.7'
-
 volumes:
   orderer.eventchain.com:
   peer0.platform.eventchain.com:

@@ -8,7 +8,7 @@ function apiData(data) {
   return { error: false, data };
 }
 
-async function installApiScenario(page) {
+async function installApiScenario(page, { expired = false } = {}) {
   const future = (minutes) => new Date(Date.now() + minutes * 60_000).toISOString();
   const market = {
     marketId: MARKET_ID,
@@ -20,7 +20,7 @@ async function installApiScenario(page) {
       { id: 'away', label: '客队胜' },
     ],
     outcomeProbabilityBps: { home: 5000, draw: 2000, away: 3000 },
-    closeAt: future(60),
+    closeAt: future(expired ? -60 : 60),
     stakeBucket: 'BONUS',
     marketCap: 4_000_000_000,
     displayedPool: 120_000_000,
@@ -33,10 +33,20 @@ async function installApiScenario(page) {
     title: ACTIVITY_TITLE,
     capacity: 3,
     applicationCount: 1,
-    applicationCloseAt: future(120),
+    applicationCloseAt: future(expired ? -30 : 120),
     startsAt: future(180),
     endsAt: future(300),
     status: 'APPLICATION_OPEN',
+  };
+  const offer = {
+    offerId: 'basketball-court',
+    categoryId: 'basketball',
+    offerType: 'VENUE',
+    title: '篮球馆 1 小时',
+    pricePaidB: 50_000_000,
+    cancellationBps: 15_000,
+    guaranteeAvailableA: 500_000_000,
+    inventory: 20,
   };
   const wallet = {
     aAvailable: 1_000_000_000,
@@ -94,7 +104,7 @@ async function installApiScenario(page) {
     if (method === 'GET' && path === '/finance/wallet') return json(wallet);
     if (method === 'GET' && path === '/finance/categories') return json([{ id: 'basketball', name: '篮球' }]);
     if (method === 'GET' && path === '/finance/markets') return json([market]);
-    if (method === 'GET' && path === '/finance/offers') return json([]);
+    if (method === 'GET' && path === '/finance/offers') return json([offer]);
     if (method === 'GET' && path === `/finance/markets/${MARKET_ID}`) return json(market);
     if (method === 'GET' && path === '/activities') return json([activity]);
 
@@ -165,7 +175,7 @@ test('登录 → 建立仓位 → 报名 → 领票 → 签到', async ({ page }
 
   await test.step('学生登录并建立仓位', async () => {
     await login(page, '3220100001', 'eventchain-student-2026');
-    await expect(page.getByRole('heading', { name: '正在进行的预测市场' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '预测市场进度' })).toBeVisible();
 
     await page.locator('.market-row').filter({ hasText: ACTIVITY_TITLE }).click();
     await expect(page.getByRole('heading', { name: '建立预测仓位' })).toBeVisible();
@@ -213,4 +223,36 @@ test('登录 → 建立仓位 → 报名 → 领票 → 签到', async ({ page }
     await expect(page.getByText('已发放 5 B_bonus')).toBeVisible();
     expect(state.checkInProof).toEqual(JSON.parse(proof));
   });
+});
+
+test('截止状态、余额提示和运营员界面保持一致', async ({ page }) => {
+  await installApiScenario(page, { expired: true });
+
+  await login(page, '3220100001', 'eventchain-student-2026');
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const name of ['赛事市场', '票务大厅', '服务兑换', 'A / B 钱包', '我的']) {
+    const box = await page.getByRole('link', { name, exact: true }).boundingBox();
+    expect(box).not.toBeNull();
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(390);
+  }
+  await expect(page.locator('.market-row').filter({ hasText: ACTIVITY_TITLE })).toContainText('待运营方锁盘');
+
+  await page.getByRole('link', { name: '票务大厅', exact: true }).click();
+  await expect(page.locator('.status-pill--waiting')).toHaveText('报名已截止，等待抽签');
+
+  await page.getByRole('link', { name: '服务兑换', exact: true }).click();
+  await expect(page.getByText('当前可用 50 B_paid')).toBeVisible();
+  await expect(page.getByText('先选择预约时间')).toBeVisible();
+  await expect(page.getByRole('button', { name: '兑换', exact: true })).toBeDisabled();
+
+  await page.setViewportSize({ width: 700, height: 900 });
+  await page.getByRole('button', { name: '退出' }).click();
+  await login(page, 'operator01', 'eventchain-operator-2026');
+  await page.getByRole('link', { name: '运营台', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '市场动作' })).toBeVisible();
+  await expect(page.getByText('结果编号', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '抽签与活动状态' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: '运营台', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

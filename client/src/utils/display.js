@@ -63,6 +63,18 @@ export const ticketStatusLabel = (value) => label('ticketStatus', value);
 export const bucketLabel = (value) => label('bucket', value);
 export const offerTypeLabel = (value) => label('offerType', value);
 
+export function marketDisplayStatusLabel(market, now = Date.now()) {
+  if (market?.status === 'OPEN' && new Date(market.closeAt).getTime() <= now) return '待运营方锁盘';
+  return marketStatusLabel(market?.status);
+}
+
+export function activityDisplayStatusLabel(activity, now = Date.now()) {
+  if (activity?.status === 'APPLICATION_OPEN' && new Date(activity.applicationCloseAt).getTime() <= now) {
+    return '报名已截止，等待抽签';
+  }
+  return activityStatusLabel(activity?.status);
+}
+
 export function readStoredJSON(key) {
   try {
     const value = localStorage.getItem(key);

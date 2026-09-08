@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import api from '../api/index.js';
@@ -10,7 +10,7 @@ import { useActivityV2Store } from '../stores/activityV2.js';
 import { useAuthStore } from '../stores/auth.js';
 import ProbabilityBar from '../components/ProbabilityBar.vue';
 import StatusPill from '../components/StatusPill.vue';
-import { activityStatusLabel, bucketLabel, marketStatusLabel, roleLabel } from '../utils/display.js';
+import { activityDisplayStatusLabel, bucketLabel, marketDisplayStatusLabel, roleLabel } from '../utils/display.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -21,11 +21,14 @@ const selectedOutcome = ref('');
 const amount = ref(10);
 const challengeReason = ref('');
 const submitting = ref(false);
+const clock = ref(Date.now());
+const clockTimer = setInterval(() => { clock.value = Date.now(); }, 1000);
+onBeforeUnmount(() => clearInterval(clockTimer));
 const market = computed(() => finance.currentMarket);
 const activity = computed(() => activityStore.activities.find((item) => item.id === market.value?.eventId));
 const category = computed(() => finance.categories.find((item) => item.id === market.value?.categoryId));
 const walletBucket = computed(() => finance.wallet?.categories?.[market.value?.categoryId]?.[market.value?.stakeBucket === 'PAID' ? 'paid' : 'bonus']);
-const marketAccepting = computed(() => market.value?.status === 'OPEN' && new Date(market.value.closeAt).getTime() > Date.now());
+const marketAccepting = computed(() => market.value?.status === 'OPEN' && new Date(market.value.closeAt).getTime() > clock.value);
 const probability = (id) => ((market.value?.outcomeProbabilityBps?.[id] || 0) / 100).toFixed(1);
 const probabilityOutcomes = computed(() => (market.value?.outcomes || []).map((item) => ({ ...item, pct: Number(probability(item.id)) })));
 
@@ -61,11 +64,12 @@ async function claim() {
   <div v-if="market" class="event-detail">
     <button class="back-link" @click="router.push('/')">← 返回赛事市场</button>
     <GlassCard class="event-header" padding="32px" :hoverable="false">
-      <div class="header-top"><span>{{ category?.name || market.categoryId }}</span><StatusPill :status="market.status === 'OPEN' ? 'open' : 'closed'" :label="marketStatusLabel(market.status)" /></div>
+      <div class="header-top"><span>{{ category?.name || market.categoryId }}</span><StatusPill :status="marketAccepting ? 'open' : 'closed'" :label="marketDisplayStatusLabel(market, clock)" /></div>
       <p class="market-id">{{ market.marketId }}</p>
       <h1>{{ activity?.title || market.eventId }}</h1>
       <p class="header-copy">{{ market.stakeBucket === 'BONUS' ? '仅使用不可兑回的 B_bonus' : '使用有 A 储备的 B_paid' }} · 公开概率来自五分钟取整快照</p>
-      <div v-if="market.status === 'OPEN'" class="countdown-wrap"><span>距离锁盘</span><CountdownTimer :target-time="market.closeAt" /></div>
+      <div v-if="marketAccepting" class="countdown-wrap"><span>距离锁盘</span><CountdownTimer :target-time="market.closeAt" /></div>
+      <p v-else-if="market.status === 'OPEN'" class="deadline-note">锁盘时间已到，等待运营方执行链上锁盘</p>
       <ProbabilityBar class="probability-grid" :outcomes="probabilityOutcomes" variant="split" />
     </GlassCard>
 
@@ -82,7 +86,7 @@ async function claim() {
         </GlassCard>
 
         <GlassCard v-if="activity" padding="24px" :hoverable="false">
-          <div class="card-heading"><div><p>关联活动</p><h2>{{ activity.title }}</h2></div><span>{{ activityStatusLabel(activity.status) }}</span></div>
+          <div class="card-heading"><div><p>关联活动</p><h2>{{ activity.title }}</h2></div><span>{{ activityDisplayStatusLabel(activity, clock) }}</span></div>
           <div class="activity-meta"><span>容量 {{ activity.capacity }}</span><span>申请 {{ activity.applicationCount }}</span><span>{{ new Date(activity.startsAt).toLocaleString('zh-CN') }}</span></div>
           <button class="soft-btn" @click="router.push('/tickets')">前往票务大厅</button>
         </GlassCard>
@@ -122,6 +126,7 @@ async function claim() {
 .event-detail { display: grid; gap: 20px; width:min(1040px,100%); margin:0 auto; padding:clamp(22px,4vw,40px) clamp(20px,4vw,48px) 42px; }.back-link { width: fit-content; border: 0; background: transparent; color: var(--ec-red); cursor: pointer; font:600 15px var(--ec-font-display); }
 .event-header { text-align: left; max-width:880px; }.header-top { display: flex; justify-content: space-between; color: var(--color-text-secondary); font-size: 12px; font-weight: 700; }.status-badge { padding: 5px 12px; color: #087f5b; }.market-id { color: var(--color-primary); font-weight: 800; letter-spacing: .12em; font-size: 11px; margin-top: 14px; }.event-header h1 { font-size: clamp(32px,5vw,48px); letter-spacing: -.03em; margin: 5px 0 8px; }.header-copy { color: var(--color-text-secondary); }
 .countdown-wrap { display:flex;justify-content:center;align-items:center;gap:10px;margin-top:14px;color:var(--color-text-tertiary);font-size:12px; }
+.deadline-note{margin-top:14px;text-align:center;color:var(--ec-danger);font-size:12px;font-weight:700}
 .probability-grid{max-width:540px;margin:26px auto 0}
 .detail-grid { display: grid; grid-template-columns: 1fr; max-width:880px; gap: 20px; align-items: start; }.detail-column, aside { display: grid; gap: 20px; }.card-heading { display: flex; justify-content: space-between; align-items: start; }.card-heading p,.panel-kicker { color: var(--color-primary); font-size: 10px; font-weight: 800; letter-spacing: .16em; }.card-heading h2 { margin-top: 3px; }.card-heading > span { font-size: 11px; font-weight: 800; color: var(--color-primary); }
 .pool-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 22px; }.pool-stats div { background:var(--ec-inset); border-radius:var(--ec-r-field); padding: 15px; }.pool-stats strong,.pool-stats small { display: block; }.pool-stats strong {font:800 27px var(--ec-font-display)}.pool-stats small { color: var(--ec-faint); margin-top: 5px;font:500 9px var(--ec-font-mono) }.privacy-note,.fine-print,.challenge-panel p { color: var(--ec-muted); font-size: 12px; line-height: 1.65; margin-top: 15px; }
