@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
-import { app } from '../src/app.js';
+import express from 'express';
+import { app, createReadinessHandler } from '../src/app.js';
 import { validateProductionConfig } from '../src/config/index.js';
 import { asText, hashEvidence, idempotencyKey } from '../src/services/financeService.js';
 
@@ -50,6 +51,16 @@ test('malformed JSON is rejected as a client error', async () => {
 
 test('V2 finance routes require authentication', async () => {
   const response = await fetch(`${origin}/api/v2/finance/wallet`);
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).code, 'UNAUTHORIZED');
+});
+
+test('secret-based CheckIn route remains protected and keeps its original endpoint', async () => {
+  const response = await fetch(`${origin}/api/v2/activities/check-in/verify`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ticketId: 'ticket-1', secret: 'a'.repeat(32), timeSlice: 1 }),
+  });
   assert.equal(response.status, 401);
   assert.equal((await response.json()).code, 'UNAUTHORIZED');
 });
@@ -104,4 +115,29 @@ test('production configuration requires explicit identity protection keys', () =
     if (original.encryptionKey === undefined) delete process.env.IDENTITY_ENCRYPTION_KEY;
     else process.env.IDENTITY_ENCRYPTION_KEY = original.encryptionKey;
   }
+});
+
+test('readiness requires the admin badge capability probe and reports clear 503s', async () => {
+  const calls = [];
+  const handler = createReadinessHandler({
+    findProbeUser: () => ({ account_id: 'acct_admin' }),
+    financeProbe: async (_id, fn) => { calls.push(fn); return {}; },
+    activityProbe: async (_id, fn) => {
+      calls.push(fn);
+      if (fn === 'GetBadgeReadiness') throw new Error('unknown transaction GetBadgeReadiness');
+      return [];
+    },
+  });
+  const readinessApp = express();
+  readinessApp.get('/api/readiness', handler);
+  const readinessServer = readinessApp.listen(0, '127.0.0.1');
+  await new Promise((resolve) => readinessServer.once('listening', resolve));
+  const response = await fetch(`http://127.0.0.1:${readinessServer.address().port}/api/readiness`);
+  await new Promise((resolve, reject) => readinessServer.close((error) => error ? reject(error) : resolve()));
+  assert.equal(response.status, 503);
+  const json = await response.json();
+  assert.equal(json.code, 'BADGE_CHAINCODE_UNAVAILABLE');
+  assert.equal(json.checks.activity, true);
+  assert.equal(json.checks.badges, false);
+  assert.deepEqual(calls, ['GetConfig', 'ListActivities', 'ListBadgeSeries', 'GetBadgeReadiness']);
 });

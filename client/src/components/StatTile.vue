@@ -1,0 +1,3 @@
+<script setup>defineProps({value:[String,Number],label:String,variant:{type:String,default:'inset'},accent:String});</script>
+<template><div class="stat-tile" :class="[`stat-tile--${variant}`,accent&&`stat-tile--${accent}`]"><strong>{{ value }}</strong><span>{{ label }}</span></div></template>
+<style scoped>.stat-tile{padding:14px;background:var(--ec-inset);border-radius:var(--ec-r-field)}.stat-tile strong,.stat-tile span{display:block}.stat-tile strong{font:800 29px/1 var(--ec-font-display)}.stat-tile span{margin-top:6px;color:var(--ec-faint);font:500 9px var(--ec-font-mono);letter-spacing:.08em;text-transform:uppercase}.stat-tile--orange strong{color:var(--ec-orange)}.stat-tile--clay strong{color:var(--ec-clay)}</style>

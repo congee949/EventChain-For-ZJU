@@ -88,12 +88,19 @@ CLOSE_AT=$(node -e 'console.log(new Date(Date.now()+2*3600e3).toISOString())')
 APP_CLOSE=$(node -e 'console.log(new Date(Date.now()+4*3600e3).toISOString())')
 START_AT=$(node -e 'console.log(new Date(Date.now()+5*3600e3).toISOString())')
 END_AT=$(node -e 'console.log(new Date(Date.now()+7*3600e3).toISOString())')
+ELIGIBILITY_OPEN=$(node -e 'console.log(new Date(Date.now()+3*3600e3).toISOString())')
+ELIGIBILITY_CLOSE=$(node -e 'console.log(new Date(Date.now()+9*3600e3).toISOString())')
+CLAIM_OPEN=$(node -e 'console.log(new Date(Date.now()+3*3600e3).toISOString())')
+CLAIM_CLOSE=$(node -e 'console.log(new Date(Date.now()+30*86400e3).toISOString())')
 
 echo "Creating the default B_bonus market and activity..."
 post_json /finance/markets "{\"marketId\":\"basketball-final\",\"eventId\":\"basketball-final\",\"categoryId\":\"basketball\",\"outcomes\":[{\"id\":\"home\",\"label\":\"主队胜\"},{\"id\":\"draw\",\"label\":\"平局\"},{\"id\":\"away\",\"label\":\"客队胜\"}],\"closeAt\":\"$CLOSE_AT\",\"stakeBucket\":\"BONUS\",\"marketCap\":\"4000\"}" "$ORGANIZER_TOKEN" >/dev/null
 post_json /finance/markets/basketball-final/open '{}' "$ORGANIZER_TOKEN" >/dev/null
 
 post_json /activities "{\"id\":\"basketball-final\",\"categoryId\":\"basketball\",\"title\":\"院际篮球决赛\",\"capacity\":3,\"applicationCloseAt\":\"$APP_CLOSE\",\"startsAt\":\"$START_AT\",\"endsAt\":\"$END_AT\"}" "$ORGANIZER_TOKEN" >/dev/null
+post_json /badges/series "{\"seriesId\":\"basketball-2026-demo\",\"seasonId\":\"2026-demo\",\"categoryId\":\"basketball\",\"title\":\"2026 院际篮球赛季纪念徽章\",\"description\":\"完成院际篮球决赛现场签到后可免费领取的赛季数字纪念凭证。\",\"assetUri\":\"/badges/basketball-2026-demo/v1/badge.png\",\"assetSha256\":\"382005d778fa4e12347b32ef555ff8d09f5a816f80c7ca38611a4422002abd93\",\"metadataSha256\":\"8fa829a0dd92e46376c1af9ddb7f213bfedc1694d202ac11e7d3c068d239f145\",\"eligibilityPolicyHash\":\"d76226a58b5f6010210a7056e9d62d03bac33e9682932be9ae943561e27b3ba3\",\"issuanceMode\":\"CHECK_IN_GUARANTEED\",\"maxSupply\":3,\"eligibilityOpenAt\":\"$ELIGIBILITY_OPEN\",\"eligibilityCloseAt\":\"$ELIGIBILITY_CLOSE\",\"claimOpenAt\":\"$CLAIM_OPEN\",\"claimCloseAt\":\"$CLAIM_CLOSE\",\"supplyRationale\":\"发行上限等于关联活动容量，保证每名有效签到参与者均可领取。\"}" "$ADMIN_TOKEN" >/dev/null
+post_json /badges/series/basketball-2026-demo/activities/basketball-final '{"eligibilityQuota":3}' "$ADMIN_TOKEN" >/dev/null
+post_json /badges/series/basketball-2026-demo/activate '{}' "$ADMIN_TOKEN" >/dev/null
 DRAW_SEED="independent-verifier-seed-eventchain-2026"
 post_json /activities/basketball-final/draw-commitment "{\"seed\":\"$DRAW_SEED\"}" "$VERIFIER_TOKEN" >/dev/null
 

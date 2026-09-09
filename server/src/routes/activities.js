@@ -33,7 +33,7 @@ router.get('/:activityId/ticket', requireRole('student'), route(async (req, res)
 router.post('/:activityId/ticket', requireRole('student'), route(async (req, res) => {
   const secret = asText(req.body.secret, 'secret');
   if (secret.length < 32 || secret.length > 256) validation('secret must contain 32-256 characters');
-  const result = await activitySubmit(req.user.userId, 'ClaimTicket', [], {
+  const result = await activitySubmit(req.user.userId, 'ClaimTicket', [req.params.activityId], {
     claim: { secret, refId: idempotencyKey(req) },
   });
   ok(res, { ticket: result }, 201);

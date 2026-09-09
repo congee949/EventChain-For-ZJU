@@ -38,6 +38,19 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/badges',
+    name: 'Badges',
+    component: () => import('../views/BadgeGalleryView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/badges/:seriesId',
+    name: 'BadgeDetail',
+    component: () => import('../views/BadgeDetailView.vue'),
+    meta: { requiresAuth: true },
+    props: true,
+  },
+  {
     path: '/me',
     name: 'Profile',
     component: () => import('../views/ProfileView.vue'),

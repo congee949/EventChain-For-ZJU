@@ -82,12 +82,14 @@ type CheckInRequest struct {
 }
 
 type CheckInReceipt struct {
-	ActivityID  string `json:"activityId"`
-	CategoryID  string `json:"categoryId"`
-	AccountID   string `json:"accountId"`
-	TicketID    string `json:"ticketId"`
-	RefID       string `json:"refId"`
-	CheckedInAt string `json:"checkedInAt"`
+	ActivityID       string                   `json:"activityId"`
+	CategoryID       string                   `json:"categoryId"`
+	AccountID        string                   `json:"accountId"`
+	TicketID         string                   `json:"ticketId"`
+	RefID            string                   `json:"refId"`
+	CheckedInAt      string                   `json:"checkedInAt"`
+	BadgeEligibility []BadgeEligibilityResult `json:"badgeEligibility,omitempty"`
+	Replayed         bool                     `json:"replayed"`
 }
 
 type applicationIndex struct {
@@ -594,6 +596,7 @@ func (ac *ActivityContract) CheckIn(ctx contractapi.TransactionContextInterface)
 		if err != nil || !found {
 			return nil, fmt.Errorf("used ticket receipt is missing")
 		}
+		existing.Replayed = true
 		return &existing, nil
 	}
 	if ticket.Status != "ISSUED" {
@@ -615,13 +618,17 @@ func (ac *ActivityContract) CheckIn(ctx contractapi.TransactionContextInterface)
 	}
 	ticket.Status = "USED"
 	ticket.CheckedInAt = timestamp(now)
-	if err := putPrivate(ctx, ticketKey, &ticket); err != nil {
-		return nil, err
-	}
 	refID := "checkin:" + activity.ID + ":" + lookup.AccountID
 	receipt := &CheckInReceipt{
 		ActivityID: activity.ID, CategoryID: activity.CategoryID, AccountID: lookup.AccountID,
 		TicketID: ticket.TicketID, RefID: refID, CheckedInAt: timestamp(now),
+	}
+	receipt.BadgeEligibility, err = recordBadgeEligibility(ctx, activity, &ticket, lookup.AccountID, now)
+	if err != nil {
+		return nil, err
+	}
+	if err := putPrivate(ctx, ticketKey, &ticket); err != nil {
+		return nil, err
 	}
 	if err := putPrivate(ctx, receiptKey, receipt); err != nil {
 		return nil, err

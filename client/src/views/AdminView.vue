@@ -15,6 +15,8 @@ const role = computed(() => auth.user?.role || '');
 const marketForm = reactive({ marketId: '', eventId: '', categoryId: '', labels: '主队胜,平局,客队胜', closeAt: '', marketCap: 4000 });
 const activityForm = reactive({ id: '', categoryId: '', title: '', capacity: 100, applicationCloseAt: '', startsAt: '', endsAt: '' });
 const serviceForm = reactive({ offerId: '', categoryId: '', offerType: 'VENUE', title: '', price: 50, cancellationBps: 15000, guaranteeBudget: 500, bonusBudget: 300, inventory: 20 });
+const badgeForm = reactive({ seriesId: '', seasonId: '2026', categoryId: '', title: '', description: '', assetUri: '', assetSha256: '', metadataSha256: '', eligibilityPolicyHash: '', maxSupply: 100, eligibilityOpenAt: '', eligibilityCloseAt: '', claimOpenAt: '', claimCloseAt: '', supplyRationale: '' });
+const badgeAction = reactive({ seriesId: '', activityId: '', eligibilityQuota: 1 });
 const action = reactive({ marketId: '', outcomeId: '', evidence: '', activityId: '', seed: '', activityStatus: '' });
 const claimReport = ref(null);
 const busy = ref(false);
@@ -123,6 +125,7 @@ async function refresh() {
   marketForm.categoryId ||= finance.categories[0]?.id || '';
   activityForm.categoryId ||= marketForm.categoryId;
   serviceForm.categoryId ||= marketForm.categoryId;
+  badgeForm.categoryId ||= marketForm.categoryId;
 }
 
 onMounted(refresh);
@@ -168,6 +171,21 @@ async function createService() {
     title: text(serviceForm.title), price: serviceForm.price, cancellationBps: serviceForm.cancellationBps,
     guaranteeBudget: serviceForm.guaranteeBudget, bonusBudget: serviceForm.bonusBudget, inventory: serviceForm.inventory,
   }, { headers: idempotencyHeaders('offer') }), '服务商品已创建并锁定赔付预算');
+}
+
+async function createBadge() {
+  const fields = [badgeForm.seriesId, badgeForm.seasonId, badgeForm.categoryId, badgeForm.title, badgeForm.description, badgeForm.assetUri, badgeForm.assetSha256, badgeForm.metadataSha256, badgeForm.eligibilityPolicyHash, badgeForm.eligibilityOpenAt, badgeForm.eligibilityCloseAt, badgeForm.claimOpenAt, badgeForm.claimCloseAt, badgeForm.supplyRationale];
+  if (fields.some((value) => !text(value))) return showValidation('请完整填写徽章系列字段');
+  await run(() => api.post('/badges/series', { ...badgeForm, issuanceMode: 'CHECK_IN_GUARANTEED', eligibilityOpenAt: toISO(badgeForm.eligibilityOpenAt), eligibilityCloseAt: toISO(badgeForm.eligibilityCloseAt), claimOpenAt: toISO(badgeForm.claimOpenAt), claimCloseAt: toISO(badgeForm.claimCloseAt) }), '徽章系列草稿已创建');
+}
+
+async function linkBadge() {
+  if (!text(badgeAction.seriesId) || !text(badgeAction.activityId)) return showValidation('请选择徽章系列和活动');
+  await run(() => api.post(`/badges/series/${badgeAction.seriesId}/activities/${badgeAction.activityId}`, { eligibilityQuota: badgeAction.eligibilityQuota }), '活动资格已关联');
+}
+
+async function badgePost(path, body = {}) {
+  return run(() => api.post(path, body, { headers: idempotencyHeaders('badge-ops') }));
 }
 
 async function runMarketAction(kind, url, body = {}) {
@@ -235,6 +253,27 @@ async function processClaims() {
           <div class="form-field"><label>B_bonus 奖励预算 <span class="optional">可选</span></label><el-input-number v-model="serviceForm.bonusBudget" :min="0"/><small>创建时从本分类锁定，用于服务补偿奖励。</small></div>
           <div class="form-field"><label>库存 <i class="required">*</i></label><el-input-number v-model="serviceForm.inventory" :min="1" :max="1000000" :precision="0"/><small>最多可创建的服务订单数，范围 1–1000000。</small></div>
           <el-button type="primary" :loading="busy" @click="createService">创建并预存保证金</el-button>
+        </div></GlassCard>
+      </div>
+    </section>
+
+    <section v-if="role === 'admin'" class="section badge-admin-section">
+      <div class="section-heading"><div><p>SOULBOUND BADGES</p><h2>限量赛季徽章</h2></div><span>仅 Platform admin；激活后固定发行上限</span></div>
+      <div class="form-grid">
+        <GlassCard :hoverable="false"><h3>创建系列草稿</h3><div class="form-stack">
+          <el-input v-model="badgeForm.seriesId" placeholder="series ID"/><el-input v-model="badgeForm.seasonId" placeholder="赛季 ID"/>
+          <el-select v-model="badgeForm.categoryId" placeholder="积分分类"><el-option v-for="c in finance.categories" :key="c.id" :label="c.name" :value="c.id"/></el-select>
+          <el-input v-model="badgeForm.title" placeholder="徽章标题"/><el-input v-model="badgeForm.description" type="textarea" :rows="2" placeholder="中性纪念说明"/>
+          <el-input v-model="badgeForm.assetUri" placeholder="图案 URI（/badges/... 或 ipfs://）"/><el-input v-model="badgeForm.assetSha256" placeholder="图案 SHA-256"/><el-input v-model="badgeForm.metadataSha256" placeholder="元数据 SHA-256"/><el-input v-model="badgeForm.eligibilityPolicyHash" placeholder="资格规则 SHA-256"/>
+          <el-input-number v-model="badgeForm.maxSupply" :min="1" :max="100000"/><el-date-picker v-model="badgeForm.eligibilityOpenAt" type="datetime" placeholder="资格开始"/><el-date-picker v-model="badgeForm.eligibilityCloseAt" type="datetime" placeholder="资格结束"/><el-date-picker v-model="badgeForm.claimOpenAt" type="datetime" placeholder="领取开始"/><el-date-picker v-model="badgeForm.claimCloseAt" type="datetime" placeholder="领取结束"/><el-input v-model="badgeForm.supplyRationale" type="textarea" :rows="2" placeholder="固定上限依据"/>
+          <el-button type="primary" :loading="busy" @click="createBadge">创建徽章草稿</el-button>
+        </div></GlassCard>
+        <GlassCard :hoverable="false"><h3>关联活动并激活</h3><div class="form-stack">
+          <el-input v-model="badgeAction.seriesId" placeholder="series ID"/><el-select v-model="badgeAction.activityId" filterable placeholder="DRAFT 活动"><el-option v-for="a in activityStore.activities.filter((item) => item.status === 'DRAFT')" :key="a.id" :label="`${a.title} · DRAFT · 容量 ${a.capacity}`" :value="a.id"/></el-select><el-input-number v-model="badgeAction.eligibilityQuota" :min="1" :max="100000"/>
+          <p class="helper">资格上限应等于活动容量；所有关联活动容量之和不得超过固定发行上限。</p>
+          <el-button :loading="busy" @click="linkBadge">关联有效签到资格</el-button><el-button type="primary" :loading="busy" @click="badgePost(`/badges/series/${badgeAction.seriesId}/activate`)">激活并冻结规则</el-button>
+          <div class="button-grid"><el-button @click="badgePost(`/badges/series/${badgeAction.seriesId}/pause`, { reasonHash: badgeForm.eligibilityPolicyHash })">暂停</el-button><el-button @click="badgePost(`/badges/series/${badgeAction.seriesId}/resume`)">恢复</el-button><el-button @click="badgePost(`/badges/series/${badgeAction.seriesId}/close`)">关闭</el-button><el-button @click="badgePost(`/badges/series/${badgeAction.seriesId}/finalize`)">最终确认</el-button></div>
+          <p class="helper">不可交易、不可兑换、无现金价值；管理端没有铸造、转让或删除入口。</p>
         </div></GlassCard>
       </div>
     </section>
