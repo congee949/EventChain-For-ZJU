@@ -8,5 +8,15 @@
     "memberOnlyRead": false,
     "memberOnlyWrite": false,
     "endorsementPolicy": { "signaturePolicy": "AND('PlatformMSP.peer','StudentMSP.peer')" }
+  },
+  {
+    "name": "badge_private",
+    "policy": "OR('PlatformMSP.member','StudentMSP.member')",
+    "requiredPeerCount": 1,
+    "maxPeerCount": 2,
+    "blockToLive": 0,
+    "memberOnlyRead": true,
+    "memberOnlyWrite": true,
+    "endorsementPolicy": { "signaturePolicy": "AND('PlatformMSP.peer','StudentMSP.peer')" }
   }
 ]

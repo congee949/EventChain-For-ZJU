@@ -5,6 +5,11 @@ import { evaluateTransactionOptions, submitTransactionOptions } from './fabricGa
 const FINANCE_ENDORSERS = ['PlatformMSP', 'StudentMSP'];
 const FINANCE_READERS = ['PlatformMSP'];
 
+// Shared validation for request idempotency keys.  Individual domains may
+// derive their own ledger reference from this opaque client value; finance
+// keeps passing its existing key through unchanged.
+export const IDEMPOTENCY_PATTERN = /^[A-Za-z0-9._:-]{8,128}$/;
+
 export function asText(value, field, { optional = false } = {}) {
   if ((value === undefined || value === null || value === '') && optional) return '';
   if (typeof value !== 'string' && typeof value !== 'number') validation(`${field} must be a string or number`);
@@ -22,7 +27,7 @@ export function asJSON(value, field) {
 
 export function idempotencyKey(req) {
   const value = req.get('Idempotency-Key');
-  if (!value || !/^[A-Za-z0-9._:-]{8,128}$/.test(value)) {
+  if (!value || !IDEMPOTENCY_PATTERN.test(value)) {
     validation('Idempotency-Key header must contain 8-128 safe characters');
   }
   return value;

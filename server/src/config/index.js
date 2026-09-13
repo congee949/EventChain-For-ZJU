@@ -50,6 +50,7 @@ export default {
 
   walletPath: path.resolve(root, process.env.WALLET_PATH || './wallet'),
   dbPath: path.resolve(root, process.env.DB_PATH || './data/users.db'),
+  badgePendingJournalPath: path.resolve(root, process.env.BADGE_PENDING_JOURNAL_PATH || './data/badge-pending.json'),
 };
 
 export function validateProductionConfig(currentConfig) {
